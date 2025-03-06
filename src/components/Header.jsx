@@ -27,135 +27,148 @@ const Header = () => {
   }, [city]);
 
   return (
-    <AppBar position="static" sx={{ backgroundColor: "#001A00", p: 1 }}>
-      <Toolbar
+    <>
+      {/* Фиксированный хэдер */}
+      <AppBar
+        position="sticky"
         sx={{
-          minHeight: "20px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          backgroundColor: "#001A00",
+          p: 1,
+          top: 0,
+          width: "100%",
+          zIndex: 1000,
         }}
       >
-        
-        <div
-          style={{
+        <Toolbar
+          sx={{
+            minHeight: "20px",
             display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
+            justifyContent: "space-between",
+            alignItems: "center",
           }}
         >
-          <Typography variant="h4" sx={{ fontWeight: "bold", lineHeight: 1 }}>
-            MedHelper
-          </Typography>
-          <Typography variant="caption" sx={{ opacity: 0.8, mt: 0.5 }}>
-            Easier appointments. Smarter diagnoses. Powered by AI.
-          </Typography>
-        </div>
-
-       
-        <TextField
-          variant="outlined"
-          size="small"
-          placeholder="Search for clinics, doctors..."
-          sx={{
-            backgroundColor: "white",
-            borderRadius: "20px",
-            width: "40%",
-            ml: "-20px",
-            "& .MuiOutlinedInput-root": {
-              borderRadius: "20px",
-              border: "none",
-              boxShadow: "none",
-              "& fieldset": { border: "none" },
-            },
-            "& .MuiInputBase-root": { pl: 2 },
-          }}
-          InputProps={{
-            startAdornment: (
-              <FaSearch style={{ marginRight: "8px", color: "gray" }} />
-            ),
-          }}
-        />
-
-        
-        <div style={{ display: "flex", alignItems: "center", marginRight: "10px" }}>
-          <IconButton
-            color="inherit"
-            onClick={() => setCityModalOpen(true)}
-            sx={{ "&:hover": { color: "#FFA500" } }}
-          >
-            <FaMapMarkerAlt />
-          </IconButton>
-          <Typography variant="body2" sx={{ ml: 1 }}>{city}</Typography>
-        </div>
-
-        
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <Button
-            color="inherit"
-            sx={{ "&:hover": { color: "#FFA500" } }}
-            onClick={() => setLoginModalOpen(true)}
-          >
-            Log In
-          </Button>
-          <IconButton
-            color="inherit"
-            onClick={(e) => setAnchorEl(e.currentTarget)}
-            sx={{ "&:hover": { color: "#FFA500" } }}
-          >
-            <FaGlobe />
-          </IconButton>
-          <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-            {["ENG", "KAZ", "RUS"].map((lang) => (
-              <MenuItem
-                key={lang}
-                onClick={() => {
-                  setLanguage(lang);
-                  setAnchorEl(null);
-                }}
-              >
-                {lang}
-              </MenuItem>
-            ))}
-          </Menu>
-          <Typography variant="body2" sx={{ ml: 1 }}>{language}</Typography>
-        </div>
-      </Toolbar>
-
-      
-      <Toolbar sx={{ justifyContent: "center", minHeight: "40px" }}>
-        {[
-          { label: "Home", path: "/" },
-          { label: "CheckAI", path: "/checkai" },
-          { label: "Health Tips", path: "/health-tips" },
-          { label: "Doctors", path: "/doctors" },
-          { label: "Clinics", path: "/clinics" },
-          { label: "Specializations", path: "/specializations" },
-          { label: "About Us", path: "/about-us" },
-          { label: "Help & Support", path: "/help-support" },
-        ].map((item) => (
-          <Button
-            key={item.path}
-            color="inherit"
-            component={Link}
-            to={item.path}
-            sx={{
-              borderBottom: location.pathname === item.path ? "2px solid white" : "none",
-              borderRadius: 0,
-              mx: 1,
-              fontSize: "12px",
-              fontWeight: location.pathname === item.path ? "bold" : "normal",
-              textTransform: "none",
-              paddingY: "5px",
-              "&:hover": { color: "#FFA500" },
+          {/* Логотип и описание */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
             }}
           >
-            {item.label}
-          </Button>
-        ))}
-      </Toolbar>
+            <Typography variant="h4" sx={{ fontWeight: "bold", lineHeight: 1 }}>
+              MedHelper
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.8, mt: 0.5 }}>
+              Easier appointments. Smarter diagnoses. Powered by AI.
+            </Typography>
+          </div>
 
-     
+          {/* Поисковая строка */}
+          <TextField
+            variant="outlined"
+            size="small"
+            placeholder="Search for clinics, doctors..."
+            sx={{
+              backgroundColor: "white",
+              borderRadius: "20px",
+              width: "40%",
+              ml: "-20px",
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "20px",
+                border: "none",
+                boxShadow: "none",
+                "& fieldset": { border: "none" },
+              },
+              "& .MuiInputBase-root": { pl: 2 },
+            }}
+            InputProps={{
+              startAdornment: (
+                <FaSearch style={{ marginRight: "8px", color: "gray" }} />
+              ),
+            }}
+          />
+
+          {/* Город и выбор языка */}
+          <div style={{ display: "flex", alignItems: "center", marginRight: "10px" }}>
+            <IconButton
+              color="inherit"
+              onClick={() => setCityModalOpen(true)}
+              sx={{ "&:hover": { color: "#FFA500" } }}
+            >
+              <FaMapMarkerAlt />
+            </IconButton>
+            <Typography variant="body2" sx={{ ml: 1 }}>{city}</Typography>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <Button
+              color="inherit"
+              sx={{ "&:hover": { color: "#FFA500" } }}
+              onClick={() => setLoginModalOpen(true)}
+            >
+              Log In
+            </Button>
+            <IconButton
+              color="inherit"
+              onClick={(e) => setAnchorEl(e.currentTarget)}
+              sx={{ "&:hover": { color: "#FFA500" } }}
+            >
+              <FaGlobe />
+            </IconButton>
+            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+              {["ENG", "KAZ", "RUS"].map((lang) => (
+                <MenuItem
+                  key={lang}
+                  onClick={() => {
+                    setLanguage(lang);
+                    setAnchorEl(null);
+                  }}
+                >
+                  {lang}
+                </MenuItem>
+              ))}
+            </Menu>
+            <Typography variant="body2" sx={{ ml: 1 }}>{language}</Typography>
+          </div>
+        </Toolbar>
+
+        {/* Навигация */}
+        <Toolbar sx={{ justifyContent: "center", minHeight: "40px" }}>
+          {[
+            { label: "Home", path: "/" },
+            { label: "CheckAI", path: "/checkai" },
+            { label: "Health Tips", path: "/health-tips" },
+            { label: "Doctors", path: "/doctors" },
+            { label: "Clinics", path: "/clinics" },
+            { label: "Specializations", path: "/specializations" },
+            { label: "About Us", path: "/about-us" },
+            { label: "Help & Support", path: "/help-support" },
+          ].map((item) => (
+            <Button
+              key={item.path}
+              color="inherit"
+              component={Link}
+              to={item.path}
+              sx={{
+                borderBottom: location.pathname === item.path ? "2px solid white" : "none",
+                borderRadius: 0,
+                mx: 1,
+                fontSize: "12px",
+                fontWeight: location.pathname === item.path ? "bold" : "normal",
+                textTransform: "none",
+                paddingY: "5px",
+                "&:hover": { color: "#FFA500" },
+              }}
+            >
+              {item.label}
+            </Button>
+          ))}
+        </Toolbar>
+      </AppBar>
+
+      
+
+      {/* Модальное окно входа */}
       <Modal open={loginModalOpen} onClose={() => setLoginModalOpen(false)}>
         <Box
           sx={{
@@ -216,7 +229,7 @@ const Header = () => {
           </Box>
         </Box>
       </Modal>
-    </AppBar>
+    </>
   );
 };
 

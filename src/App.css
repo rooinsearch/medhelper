@@ -1,3 +1,4 @@
+
 .App {
   text-align: center;
 }
@@ -27,6 +28,10 @@
 .App-link {
   color: #1a6c17;
 }
+html {
+  scroll-behavior: smooth;
+}
+
 
 @keyframes App-logo-spin {
   from {
@@ -36,3 +41,25 @@
     transform: rotate(360deg);
   }
 }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  overflow-x: hidden;
+}
+/* Убираем стандартный скролл */
+html, body {
+  scrollbar-width: none; /* Для Firefox */
+  -ms-overflow-style: none; /* Для IE и Edge */
+  overflow-y: scroll; /* Оставляем прокрутку, но скрываем */
+}
+
+/* Скрываем скролл для WebKit-браузеров (Chrome, Safari) */
+html::-webkit-scrollbar, body::-webkit-scrollbar {
+  display: none;
+}
+
