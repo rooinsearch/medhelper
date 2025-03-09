@@ -5,7 +5,7 @@ const TextMain = () => {
     <Box
       sx={{
         position: "absolute",
-        top: "250px",
+        top: "100px",
         left: "70%",
         transform: "translate(-50%, -50%)",
         width: "90%",

@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { FaGlobe, FaMapMarkerAlt, FaSearch } from "react-icons/fa";
 import { Link, useLocation } from "react-router-dom";
+import LoginModal from "./LoginModal"; // Импортируем модальное окно входа
 
 const Header = () => {
   const [language, setLanguage] = useState("ENG");
@@ -166,32 +167,8 @@ const Header = () => {
         </Toolbar>
       </AppBar>
 
-      
-
       {/* Модальное окно входа */}
-      <Modal open={loginModalOpen} onClose={() => setLoginModalOpen(false)}>
-        <Box
-          sx={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            bgcolor: "white",
-            boxShadow: 24,
-            p: 3,
-            borderRadius: "10px",
-            minWidth: "300px",
-            textAlign: "center",
-          }}
-        >
-          <Typography variant="h6" sx={{ mb: 2 }}>Login</Typography>
-          <TextField fullWidth label="Email" margin="dense" />
-          <TextField fullWidth label="Password" type="password" margin="dense" />
-          <Button fullWidth variant="contained" sx={{ mt: 2 }}>Sign In</Button>
-          <Typography variant="body2" sx={{ mt: 1, cursor: "pointer", color: "blue" }}>Forgot Password?</Typography>
-          <Typography variant="body2" sx={{ mt: 1, cursor: "pointer", color: "blue" }}>No account? Sign Up</Typography>
-        </Box>
-      </Modal>
+      <LoginModal open={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
 
       {/* Модальное окно выбора города */}
       <Modal open={cityModalOpen} onClose={() => setCityModalOpen(false)}>

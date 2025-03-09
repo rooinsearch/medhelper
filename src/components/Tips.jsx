@@ -48,10 +48,10 @@ export default function HealthTips() {
     <Box
       sx={{
         position: "absolute",
-        top: "135px",
+        top: 0,
         left: "20px",
-        width: "280px", // Adjusted container width
-        height: "calc(121vh - 110px)", // Taller container
+        width: "280px",
+        height: "calc(119vh - 110px)", 
         overflowY: "auto",
         zIndex: 10,
         scrollbarWidth: "none",
@@ -61,8 +61,8 @@ export default function HealthTips() {
       <Box
         sx={{
           backgroundColor: "rgba(63, 78, 61, 0.7)",
-          borderRadius: 3,
-          boxShadow: 4,
+          borderRadius: 0,
+          boxShadow: 0,
           p: 2,
         }}
       >
@@ -169,4 +169,4 @@ export default function HealthTips() {
       </Box>
     </Box>
   );
-}
+}  

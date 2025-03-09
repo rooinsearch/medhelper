@@ -6,9 +6,9 @@ const AiMain = () => {
     <Box
       sx={{
         position: 'absolute',
-        top: '35px',
+        top: "-125px",
         left: '35%',
-        width: '800px',
+        width: '750px',
         height: '1000px',
         background: 'url(/path-to-background-image) no-repeat center center',
         backgroundSize: 'cover',
@@ -22,8 +22,8 @@ const AiMain = () => {
       <Box
         sx={{
           width: '100%',
-          maxWidth: '1024px',
-          background: 'rgba(255, 255, 255, 0.75)',
+          maxWidth: '1000px',
+          background: 'rgba(63, 78, 61, 0.7)',
           borderRadius: '16px',
           padding: '40px',
           textAlign: 'center',
@@ -33,7 +33,7 @@ const AiMain = () => {
         <Typography 
           variant="h2" 
           sx={{ 
-            color: '#000000', 
+            color: 'white', 
             fontWeight: 'bold', 
             marginBottom: '16px' 
           }}
@@ -42,9 +42,9 @@ const AiMain = () => {
         </Typography>
         
         <Typography 
-          variant="h5" 
+          variant="h6" 
           sx={{ 
-            color: '#000000', 
+            color: 'white', 
             marginBottom: '24px',
             opacity: 0.7 
           }}
@@ -55,7 +55,7 @@ const AiMain = () => {
         <Typography 
           variant="body1" 
           sx={{ 
-            color: '#000000', 
+            color: 'white', 
             marginBottom: '32px',
             maxWidth: '600px',
             margin: '0 auto',
@@ -69,14 +69,15 @@ const AiMain = () => {
         <Button
           variant="contained"
           sx={{
-            backgroundColor: '#1C3B2E',
+            backgroundColor: '#001A00',
             color: 'white',
             padding: '12px 32px',
             borderRadius: '100px',
+            top:'20px',
             textTransform: 'none',
             fontSize: '16px',
             '&:hover': {
-              backgroundColor: '#2C5B4A'
+              backgroundColor: 'orange'
             }
           }}
         >
@@ -87,4 +88,4 @@ const AiMain = () => {
   );
 };
 
-export default AiMain;
+export default AiMain; 
