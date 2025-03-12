@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   Box,
@@ -8,90 +8,92 @@ import {
   Checkbox,
   FormControlLabel,
   Divider,
-  CircularProgress,
 } from "@mui/material";
-import GoogleIcon from "@mui/icons-material/Google";
+import { GoogleLogin } from "@react-oauth/google";
+import { jwtDecode } from "jwt-decode";
+
 
 const AuthModal = ({ open, onClose }) => {
   const [rememberMe, setRememberMe] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    fullName: "",
+    username: "",
+    confirmPassword: "",
+  });
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetMessage, setResetMessage] = useState("");
 
-  const handleRegister = async () => {
-    setLoading(true);
-    setError("");
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("userEmail");
+    const savedPassword = localStorage.getItem("userPassword");
+    if (savedEmail && savedPassword) {
+      setFormData({ email: savedEmail, password: savedPassword });
+      setRememberMe(true);
+    }
+  }, []);
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match!");
-      setLoading(false);
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSignIn = () => {
+    if (rememberMe) {
+      localStorage.setItem("userEmail", formData.email);
+      localStorage.setItem("userPassword", formData.password);
+    } else {
+      localStorage.removeItem("userEmail");
+      localStorage.removeItem("userPassword");
+    }
+    console.log("Signing in with:", formData);
+  };
+
+  const handleSignUp = () => {
+    console.log("Registering with:", formData);
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetEmail) {
+      setResetMessage("Please enter your email.");
       return;
     }
-
-    const response = await fetch("http://127.0.0.1:8000/api/accounts/register/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ full_name: fullName, email, password }),
-    });
-
-    const data = await response.json();
-    setLoading(false);
-
-    if (response.ok) {
-      setIsVerifying(true);
-    } else {
-      setError(data.message || "Registration failed.");
+    try {
+      const response = await fetch("http://localhost:8000/password_reset_request/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+      const data = await response.json();
+      setResetMessage(response.ok ? "Check your email for reset instructions!" : data.error);
+    } catch (error) {
+      setResetMessage("Something went wrong. Try again.");
     }
   };
 
-  const handleVerifyOTP = async () => {
-    setLoading(true);
-    setError("");
+  const handleGoogleSuccess = async (response) => {
+    const token = response.credential;
+    const decoded = jwtDecode(token);
+    console.log("Google user:", decoded);
 
-    const response = await fetch("http://127.0.0.1:8000/api/accounts/verify-otp/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, otp }),
-    });
+    try {
+      const backendResponse = await fetch("http://localhost:8000/api/auth/google/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ access_token: token }),
+      });
 
-    const data = await response.json();
-    setLoading(false);
-
-    if (response.ok) {
-      alert("Регистрация успешно завершена!");
-      setIsRegistering(false);
-      setIsVerifying(false);
-    } else {
-      setError(data.message || "Invalid OTP.");
+      const data = await backendResponse.json();
+      console.log("Backend response:", data);
+    } catch (error) {
+      console.log("Error during Google authentication:", error);
     }
   };
 
-  const handleLogin = async () => {
-    setLoading(true);
-    setError("");
-
-    const response = await fetch("http://127.0.0.1:8000/api/accounts/login/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await response.json();
-    setLoading(false);
-
-    if (response.ok) {
-      localStorage.setItem("token", data.token);
-      alert("Login successful!");
-      onClose();
-    } else {
-      setError(data.message || "Invalid credentials.");
-    }
+  const handleGoogleFailure = () => {
+    console.log("Google sign-in failed");
   };
 
   return (
@@ -99,146 +101,93 @@ const AuthModal = ({ open, onClose }) => {
       <Box
         sx={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 400,
+          height: "100vh",
+          bgcolor: "#FFFFFF",
+          color: "#40916C",
+          boxShadow: 24,
+          p: 3,
           display: "flex",
-          alignItems: "center",
+          flexDirection: "column",
           justifyContent: "center",
-          bgcolor: "rgba(0, 0, 0, 0.5)",
+          alignItems: "center",
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <Box
-          sx={{
-            width: "100%",
-            maxWidth: "400px",
-            height: "100%",
-            bgcolor: "white",
-            boxShadow: 24,
-            p: 4,
-            textAlign: "center",
-            overflowY: isRegistering ? "auto" : "hidden",
-            scrollbarWidth: "none",
-            "&::-webkit-scrollbar": { display: "none" },
-          }}
-        >
-          <Typography variant="h5" fontWeight="bold" sx={{ mb: 2, color: "#333" }}>
-            MedHelper
-          </Typography>
+        <Typography variant="h4" fontWeight="bold" sx={{ mb: 1 }}>
+          MedHelper
+        </Typography>
 
-          <Typography variant="h6" sx={{ mb: 3, color: "#555" }}>
-            {isRegistering ? (isVerifying ? "Enter Confirmation Code" : "Create an Account") : "Welcome Back!"}
-          </Typography>
-
-          {error && (
-            <Typography color="error" sx={{ mb: 2 }}>
-              {error}
+        {showResetPassword ? (
+          <>
+            <Typography variant="h6" sx={{ textAlign: "center", mb: 1 }}>
+              Reset Password
             </Typography>
-          )}
+            <TextField
+              size="small"
+              fullWidth
+              label="Enter your email"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+            />
+            <Button fullWidth variant="contained" sx={{ mt: 2, bgcolor: "#40916C", color: "white" }} onClick={handleResetPassword}>
+              Send Reset Link
+            </Button>
+            {resetMessage && <Typography variant="body2" color="error" sx={{ mt: 1 }}>{resetMessage}</Typography>}
+            <Typography variant="body2" sx={{ mt: 2, cursor: "pointer", color: "#40916C" }} onClick={() => setShowResetPassword(false)}>
+              Back to Sign In
+            </Typography>
+          </>
+        ) : (
+          <>
+            <Typography variant="h6" sx={{ textAlign: "center", mb: 1 }}>
+              {isRegistering ? "Create an Account" : "Welcome Back!"}
+            </Typography>
 
-          {isRegistering && isVerifying ? (
-            <>
-              <Typography variant="body2" sx={{ mb: 2, color: "#666" }}>
-                We sent a verification code to your email. Please enter it below.
-              </Typography>
-              <TextField
-                fullWidth
-                label="Verification Code"
-                margin="dense"
-                variant="outlined"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-              />
-              <Button
-                fullWidth
-                variant="contained"
-                sx={{ mt: 2, py: 1.2, borderRadius: "25px" }}
-                onClick={handleVerifyOTP}
-                disabled={loading}
-              >
-                {loading ? <CircularProgress size={24} /> : "Verify Code"}
+            <Box sx={{ width: "100%", display: "flex", flexDirection: "column", gap: 1.5 }}>
+              {isRegistering && <TextField size="small" fullWidth label="Full Name" name="fullName" value={formData.fullName} onChange={handleChange} />}
+              {isRegistering && <TextField size="small" fullWidth label="Username" name="username" value={formData.username} onChange={handleChange} />}
+              <TextField size="small" fullWidth label="Email" name="email" value={formData.email} onChange={handleChange} />
+              <TextField size="small" fullWidth label="Password" type="password" name="password" value={formData.password} onChange={handleChange} />
+              {isRegistering && <TextField size="small" fullWidth label="Confirm Password" type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} />}
+
+              <Button fullWidth variant="contained" sx={{ borderRadius: "20px", bgcolor: "#40916C", color: "white", py: 1 }} onClick={isRegistering ? handleSignUp : handleSignIn}>
+                {isRegistering ? "Sign Up" : "Sign In"}
               </Button>
-            </>
-          ) : (
-            <>
-              {isRegistering && (
-                <TextField
-                  fullWidth
-                  label="Full Name"
-                  margin="dense"
-                  variant="outlined"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                />
-              )}
-              <TextField
-                fullWidth
-                label="Email"
-                margin="dense"
-                variant="outlined"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <TextField
-                fullWidth
-                label="Password"
-                type="password"
-                margin="dense"
-                variant="outlined"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              {isRegistering && (
-                <TextField
-                  fullWidth
-                  label="Confirm Password"
-                  type="password"
-                  margin="dense"
-                  variant="outlined"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
-              )}
+
+              <GoogleLogin onSuccess={handleGoogleSuccess} onError={handleGoogleFailure} />
+
+              <Divider sx={{ my: 1, bgcolor: "#40916C" }} />
 
               {!isRegistering && (
-                <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mt: 1, mb: 2 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center">
                   <FormControlLabel
-                    control={<Checkbox checked={rememberMe} onChange={() => setRememberMe(!rememberMe)} />}
-                    label="Remember me"
+                    control={<Checkbox checked={rememberMe} onChange={() => setRememberMe(!rememberMe)} sx={{ color: "#40916C" }} />}
+                    label={<Typography sx={{ color: "#40916C", fontSize: "0.85rem" }}>Remember me</Typography>}
                   />
-                  <Typography variant="body2" sx={{ cursor: "pointer", color: "#007BFF" }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ cursor: "pointer", color: "#40916C", fontSize: "0.85rem" }}
+                    onClick={() => setShowResetPassword(true)}
+                  >
                     Forgot Password?
                   </Typography>
                 </Box>
               )}
 
-              <Button
-                fullWidth
-                variant="contained"
-                sx={{ py: 1.2, borderRadius: "25px" }}
-                onClick={isRegistering ? handleRegister : handleLogin}
-                disabled={loading}
+              <Typography
+                variant="body2"
+                sx={{ textAlign: "center", mt: 1, cursor: "pointer", color: "#40916C", fontSize: "0.9rem" }}
+                onClick={() => setIsRegistering(!isRegistering)}
               >
-                {loading ? <CircularProgress size={24} /> : isRegistering ? "Sign Up" : "Sign In"}
-              </Button>
-
-              <Divider sx={{ my: 3, color: "#aaa" }}>Or, {isRegistering ? "Sign up" : "Login"} with</Divider>
-
-              <Button fullWidth variant="outlined" sx={{ py: 1.2, borderRadius: "25px" }}>
-                <GoogleIcon sx={{ mr: 1, color: "#DB4437" }} />
-                {isRegistering ? "Sign up" : "Sign in"} with Google
-              </Button>
-
-              <Typography variant="body2" sx={{ mt: 3, color: "#666" }}>
-                {isRegistering ? "Already have an account? " : "Don't have an account? "}
-                <Typography component="span" sx={{ cursor: "pointer", color: "#007BFF" }} onClick={() => setIsRegistering(!isRegistering)}>
-                  {isRegistering ? "Sign in" : "Register here"}
-                </Typography>
+                {isRegistering ? "Already have an account? Sign in" : "Don't have an account? Register here"}
               </Typography>
-            </>
-          )}
-        </Box>
+            </Box>
+          </>
+        )}
       </Box>
     </Modal>
   );

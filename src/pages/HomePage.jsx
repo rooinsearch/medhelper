@@ -6,6 +6,7 @@ import TextMain from "../components/TextMain" ;
 import Reviews from "../components/Reviews" ;
 import LoginModal from "../components/LoginModal" ;
 
+
 const HomePage = () => {
   return (
     <div style={{ position: "relative", minHeight: "100vh", overflow: "hidden" }}>
@@ -15,7 +16,8 @@ const HomePage = () => {
       <Tips/> {/* Добавляем HealthTips */}
       <TextMain/> 
       <Reviews/> 
-      <LoginModal/> 
+      <LoginModal/>
+   
 
       
     </div>

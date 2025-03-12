@@ -11,9 +11,10 @@ import {
   Modal,
   Box,
 } from "@mui/material";
-import { FaGlobe, FaMapMarkerAlt, FaSearch } from "react-icons/fa";
-import { Link, useLocation } from "react-router-dom";
-import LoginModal from "./LoginModal"; // Импортируем модальное окно входа
+import { FaGlobe, FaMapMarkerAlt, FaSearch, FaUser } from "react-icons/fa";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import LoginModal from "./LoginModal";
 
 const Header = () => {
   const [language, setLanguage] = useState("ENG");
@@ -21,47 +22,28 @@ const Header = () => {
   const [city, setCity] = useState(localStorage.getItem("selectedCity") || "Almaty");
   const [cityModalOpen, setCityModalOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false); // Убрали localStorage
   const location = useLocation();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    localStorage.setItem("selectedCity", city);
-  }, [city]);
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+    setLoginModalOpen(false);
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    navigate("/");
+  };
 
   return (
     <>
-      {/* Фиксированный хэдер */}
-      <AppBar
-        position="sticky"
-        sx={{
-          backgroundColor: "#001A00",
-          p: 1,
-          top: 0,
-          width: "100%",
-          zIndex: 1000,
-        }}
-      >
-        <Toolbar
-          sx={{
-            minHeight: "20px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          {/* Логотип и описание */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-            }}
-          >
-            <Typography variant="h4" sx={{ fontWeight: "bold", lineHeight: 1 }}>
-              MedHelper
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.8, mt: 0.5 }}>
-              Easier appointments. Smarter diagnoses. Powered by AI.
-            </Typography>
+      <AppBar position="sticky" sx={{ backgroundColor: "#001A00", p: 1, top: 0, width: "100%", zIndex: 1000 }}>
+        <Toolbar sx={{ minHeight: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {/* Логотип */}
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <Typography variant="h4" sx={{ fontWeight: "bold", lineHeight: 1 }}>MedHelper</Typography>
+            <Typography variant="caption" sx={{ opacity: 0.8, mt: 0.5 }}>Easier appointments. Smarter diagnoses. Powered by AI.</Typography>
           </div>
 
           {/* Поисковая строка */}
@@ -74,62 +56,42 @@ const Header = () => {
               borderRadius: "20px",
               width: "40%",
               ml: "-20px",
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "20px",
-                border: "none",
-                boxShadow: "none",
-                "& fieldset": { border: "none" },
-              },
+              "& .MuiOutlinedInput-root": { borderRadius: "20px", border: "none", boxShadow: "none", "& fieldset": { border: "none" } },
               "& .MuiInputBase-root": { pl: 2 },
             }}
-            InputProps={{
-              startAdornment: (
-                <FaSearch style={{ marginRight: "8px", color: "gray" }} />
-              ),
-            }}
+            InputProps={{ startAdornment: (<FaSearch style={{ marginRight: "8px", color: "gray" }} />) }}
           />
 
-          {/* Город и выбор языка */}
-          <div style={{ display: "flex", alignItems: "center", marginRight: "10px" }}>
-            <IconButton
-              color="inherit"
-              onClick={() => setCityModalOpen(true)}
-              sx={{ "&:hover": { color: "#FFA500" } }}
-            >
+          {/* Город, язык, логин/профиль */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <IconButton color="inherit" onClick={() => setCityModalOpen(true)} sx={{ "&:hover": { color: "#FFA500" } }}>
               <FaMapMarkerAlt />
             </IconButton>
-            <Typography variant="body2" sx={{ ml: 1 }}>{city}</Typography>
-          </div>
+            <Typography variant="body2">{city}</Typography>
 
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Button
-              color="inherit"
-              sx={{ "&:hover": { color: "#FFA500" } }}
-              onClick={() => setLoginModalOpen(true)}
-            >
-              Log In
-            </Button>
-            <IconButton
-              color="inherit"
-              onClick={(e) => setAnchorEl(e.currentTarget)}
-              sx={{ "&:hover": { color: "#FFA500" } }}
-            >
+            <IconButton color="inherit" onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ "&:hover": { color: "#FFA500" } }}>
               <FaGlobe />
             </IconButton>
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
               {["ENG", "KAZ", "RUS"].map((lang) => (
-                <MenuItem
-                  key={lang}
-                  onClick={() => {
-                    setLanguage(lang);
-                    setAnchorEl(null);
-                  }}
-                >
-                  {lang}
-                </MenuItem>
+                <MenuItem key={lang} onClick={() => { setLanguage(lang); setAnchorEl(null); }}>{lang}</MenuItem>
               ))}
             </Menu>
-            <Typography variant="body2" sx={{ ml: 1 }}>{language}</Typography>
+            <Typography variant="body2">{language}</Typography>
+
+            {/* Логин / Профиль */}
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+              {isAuthenticated ? (
+                <>
+                  <IconButton color="inherit" component={Link} to="/profile" sx={{ "&:hover": { color: "#FFA500" } }}>
+                    <FaUser />
+                  </IconButton>
+                  <Button color="inherit" onClick={handleLogout} sx={{ "&:hover": { color: "#FFA500" } }}>Logout</Button>
+                </>
+              ) : (
+                <Button color="inherit" onClick={() => setLoginModalOpen(true)} sx={{ "&:hover": { color: "#FFA500" } }}>Log In</Button>
+              )}
+            </motion.div>
           </div>
         </Toolbar>
 
@@ -168,38 +130,15 @@ const Header = () => {
       </AppBar>
 
       {/* Модальное окно входа */}
-      <LoginModal open={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
+      <LoginModal open={loginModalOpen} onClose={() => setLoginModalOpen(false)} onLogin={handleLogin} />
 
       {/* Модальное окно выбора города */}
       <Modal open={cityModalOpen} onClose={() => setCityModalOpen(false)}>
-        <Box
-          sx={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            bgcolor: "white",
-            boxShadow: 24,
-            p: 3,
-            borderRadius: "10px",
-            minWidth: "250px",
-            textAlign: "center",
-          }}
-        >
+        <Box sx={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", bgcolor: "white", boxShadow: 24, p: 3, borderRadius: "10px", minWidth: "250px", textAlign: "center" }}>
           <Typography variant="h6" sx={{ mb: 2 }}>Choose your city</Typography>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {["Almaty", "Astana"].map((cityOption) => (
-              <MenuItem
-                key={cityOption}
-                onClick={() => {
-                  setCity(cityOption);
-                  setCityModalOpen(false);
-                }}
-                sx={{
-                  "&:hover": { color: "#FFA500" },
-                  cursor: "pointer",
-                }}
-              >
+              <MenuItem key={cityOption} onClick={() => { setCity(cityOption); setCityModalOpen(false); }} sx={{ "&:hover": { color: "#FFA500" }, cursor: "pointer" }}>
                 {cityOption}
               </MenuItem>
             ))}
@@ -211,6 +150,5 @@ const Header = () => {
 };
 
 export default Header;
-
 
 
