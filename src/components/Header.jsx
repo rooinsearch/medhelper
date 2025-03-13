@@ -21,20 +21,29 @@ const Header = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [city, setCity] = useState(localStorage.getItem("selectedCity") || "Almaty");
   const [cityModalOpen, setCityModalOpen] = useState(false);
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // Убрали localStorage
+  const [authModalOpen, setAuthModalOpen] = useState(false); // Renamed from loginModalOpen
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    localStorage.getItem("isAuthenticated") === "true"
+  );
+  
+  useEffect(() => {
+    localStorage.setItem("isAuthenticated", isAuthenticated);
+  }, [isAuthenticated]);
+  
   const location = useLocation();
   const navigate = useNavigate();
 
   const handleLogin = () => {
     setIsAuthenticated(true);
-    setLoginModalOpen(false);
+    setAuthModalOpen(false); // Updated from loginModalOpen
   };
-
+  
   const handleLogout = () => {
     setIsAuthenticated(false);
+    localStorage.removeItem("isAuthenticated");
     navigate("/");
   };
+  
 
   return (
     <>
@@ -89,7 +98,7 @@ const Header = () => {
                   <Button color="inherit" onClick={handleLogout} sx={{ "&:hover": { color: "#FFA500" } }}>Logout</Button>
                 </>
               ) : (
-                <Button color="inherit" onClick={() => setLoginModalOpen(true)} sx={{ "&:hover": { color: "#FFA500" } }}>Log In</Button>
+                <Button color="inherit" onClick={() => setAuthModalOpen(true)} sx={{ "&:hover": { color: "#FFA500" } }}>Log In</Button>
               )}
             </motion.div>
           </div>
@@ -129,8 +138,12 @@ const Header = () => {
         </Toolbar>
       </AppBar>
 
-      {/* Модальное окно входа */}
-      <LoginModal open={loginModalOpen} onClose={() => setLoginModalOpen(false)} onLogin={handleLogin} />
+      {/* Модальное окно входа - заменено с LoginModal на AuthModal */}
+      <LoginModal 
+        open={authModalOpen} 
+        onClose={() => setAuthModalOpen(false)} 
+        onLogin={handleLogin} 
+      />
 
       {/* Модальное окно выбора города */}
       <Modal open={cityModalOpen} onClose={() => setCityModalOpen(false)}>
@@ -150,5 +163,4 @@ const Header = () => {
 };
 
 export default Header;
-
 

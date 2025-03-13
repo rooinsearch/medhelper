@@ -17,6 +17,7 @@ const HomePage = () => {
       <TextMain/> 
       <Reviews/> 
       <LoginModal/>
+  
    
 
       
