@@ -21,29 +21,29 @@ const Header = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [city, setCity] = useState(localStorage.getItem("selectedCity") || "Almaty");
   const [cityModalOpen, setCityModalOpen] = useState(false);
-  const [authModalOpen, setAuthModalOpen] = useState(false); // Renamed from loginModalOpen
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(
     localStorage.getItem("isAuthenticated") === "true"
   );
-  
+
   useEffect(() => {
     localStorage.setItem("isAuthenticated", isAuthenticated);
   }, [isAuthenticated]);
-  
+
   const location = useLocation();
   const navigate = useNavigate();
 
   const handleLogin = () => {
     setIsAuthenticated(true);
-    setAuthModalOpen(false); // Updated from loginModalOpen
+    setAuthModalOpen(false);
   };
-  
+
   const handleLogout = () => {
     setIsAuthenticated(false);
     localStorage.removeItem("isAuthenticated");
+    localStorage.removeItem("token"); // Удаляем токен при выходе
     navigate("/");
   };
-  
 
   return (
     <>
@@ -59,7 +59,7 @@ const Header = () => {
           <TextField
             variant="outlined"
             size="small"
-            placeholder="Search for clinics, doctors..."
+            placeholder="Enter the name of the test, clinic, or laboratory"
             sx={{
               backgroundColor: "white",
               borderRadius: "20px",
@@ -109,10 +109,9 @@ const Header = () => {
           {[
             { label: "Home", path: "/" },
             { label: "CheckAI", path: "/checkai" },
+            { label: "Catalog of Tests", path: "/clinics" },
+            { label: "Clinic & Laboratories", path: "/specializations" },
             { label: "Health Tips", path: "/health-tips" },
-            { label: "Doctors", path: "/doctors" },
-            { label: "Clinics", path: "/clinics" },
-            { label: "Specializations", path: "/specializations" },
             { label: "About Us", path: "/about-us" },
             { label: "Help & Support", path: "/help-support" },
           ].map((item) => (
@@ -138,7 +137,7 @@ const Header = () => {
         </Toolbar>
       </AppBar>
 
-      {/* Модальное окно входа - заменено с LoginModal на AuthModal */}
+      {/* Модальное окно входа */}
       <LoginModal 
         open={authModalOpen} 
         onClose={() => setAuthModalOpen(false)} 
@@ -163,4 +162,3 @@ const Header = () => {
 };
 
 export default Header;
-

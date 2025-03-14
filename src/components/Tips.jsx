@@ -6,8 +6,6 @@ import { Favorite, ChatBubbleOutline, ExpandMore, LightbulbOutlined } from "@mui
 const tips = [
   {
     id: 1,
-    username: "janymgul_",
-    avatarColor: "red",
     title: "Headache or Migraine?",
     description: "What's the difference? Tension in muscles vs. blood vessel pressure.",
     fullDescription: "Tension headaches involve muscle strain and create a band-like pressure. Migraines, however, are more intense and can include light sensitivity, nausea, and throbbing pain.",
@@ -16,8 +14,6 @@ const tips = [
   },
   {
     id: 2,
-    username: "ademizhann",
-    avatarColor: "green",
     title: "How to Protect Your Heart?",
     description: "Walk 10,000 steps, do breathing exercises, and eat heart-friendly foods.",
     fullDescription: "Regular walking, breathing exercises, and a diet rich in omega-3 can improve heart health and reduce stress.",
@@ -26,8 +22,6 @@ const tips = [
   },
   {
     id: 3,
-    username: "rdkaruzhan",
-    avatarColor: "blue",
     title: "The Importance of Water",
     description: "Adults need 1.5-2 liters of water daily. Dehydration causes fatigue.",
     fullDescription: "Proper hydration supports metabolism, prevents fatigue, and improves cognitive function.",
@@ -38,7 +32,7 @@ const tips = [
 
 export default function HealthTips() {
   const [expandedTip, setExpandedTip] = useState(null);
-  const navigate = useNavigate(); // Для перехода на страницу "Health Tips"
+  const navigate = useNavigate();
 
   const toggleTipExpansion = (tipId) => {
     setExpandedTip(expandedTip === tipId ? null : tipId);
@@ -51,7 +45,7 @@ export default function HealthTips() {
         top: 0,
         left: "20px",
         width: "280px",
-        height: "calc(119vh - 110px)", 
+        height: "calc(119vh - 110px)",
         overflowY: "auto",
         zIndex: 10,
         scrollbarWidth: "none",
@@ -66,7 +60,6 @@ export default function HealthTips() {
           p: 2,
         }}
       >
-        {/* Заголовок с лампочкой */}
         <Typography
           variant="h6"
           fontWeight="bold"
@@ -78,8 +71,8 @@ export default function HealthTips() {
           justifyContent="center"
           gap={1}
         >
-          <LightbulbOutlined fontSize="meduim" sx={{ color: "white" }} />
-          Weekly Top Health-Tips
+          <LightbulbOutlined fontSize="medium" sx={{ color: "white" }} />
+          Weekly Health Tips from MedHelper
         </Typography>
 
         {tips.map((tip) => (
@@ -87,7 +80,7 @@ export default function HealthTips() {
             key={tip.id}
             sx={{
               mb: 2,
-              p: 1.5, // Smaller padding inside the card
+              p: 1.5,
               borderRadius: 3,
               backgroundColor: "#fefefe",
               boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
@@ -96,17 +89,10 @@ export default function HealthTips() {
                 transform: "scale(1.02)",
                 boxShadow: "0 6px 14px rgba(0, 0, 0, 0.15)",
               },
-              width: "100%", // Adjusted card width
+              width: "100%",
             }}
           >
-            <Box display="flex" alignItems="center" gap={1}>
-              <Avatar sx={{ bgcolor: tip.avatarColor, width: 28, height: 28 }}>
-                {tip.username[0].toUpperCase()}
-              </Avatar>
-              <Typography fontWeight="bold" fontSize="0.9rem">{tip.username}</Typography>
-            </Box>
-
-            <Typography variant="subtitle2" fontWeight="bold" mt={1}>
+            <Typography variant="subtitle2" fontWeight="bold">
               {tip.title}
             </Typography>
 
@@ -155,7 +141,6 @@ export default function HealthTips() {
           </Card>
         ))}
 
-        {/* Кнопка "See more Health Tips" */}
         <Typography
           variant="body2"
           color="001A00"
@@ -169,4 +154,4 @@ export default function HealthTips() {
       </Box>
     </Box>
   );
-}  
+}

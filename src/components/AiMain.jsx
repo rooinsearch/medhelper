@@ -1,7 +1,14 @@
 import React from 'react';
 import { Box, Typography, Button } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 
 const AiMain = () => {
+  const navigate = useNavigate();
+
+  const handleStartNow = () => {
+    navigate('/checkai'); // Убедись, что маршрут "/checkai" определён в `App.js`
+  };
+
   return (
     <Box
       sx={{
@@ -73,13 +80,14 @@ const AiMain = () => {
             color: 'white',
             padding: '12px 32px',
             borderRadius: '100px',
-            top:'20px',
+            top: '20px',
             textTransform: 'none',
             fontSize: '16px',
             '&:hover': {
               backgroundColor: 'orange'
             }
           }}
+          onClick={handleStartNow}
         >
           Start Now
         </Button>
@@ -88,4 +96,4 @@ const AiMain = () => {
   );
 };
 
-export default AiMain; 
+export default AiMain;
