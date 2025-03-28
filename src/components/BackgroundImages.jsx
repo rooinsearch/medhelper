@@ -1,17 +1,19 @@
 import React from "react";
-import { Box } from "@mui/material";
+import { Box, useMediaQuery } from "@mui/material";
 
 const BackgroundImages = () => {
+  const isMobile = useMediaQuery("(max-width:768px)");
+
   return (
     <Box sx={{ width: "100%", overflowX: "hidden" }}>
       {/* Первый фон */}
       <Box
         sx={{
           width: "100%",
-          minHeight: "100vh",
+          minHeight: isMobile ? "70vh" : "100vh",
           backgroundImage: "url('/secph.png')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
+          backgroundSize: isMobile ? "cover" : "cover",
+          backgroundPosition: isMobile ? "center center" : "center",
           backgroundRepeat: "no-repeat",
           position: "relative",
           "&::before": {
@@ -32,26 +34,52 @@ const BackgroundImages = () => {
       <Box
         sx={{
           width: "100%",
-          minHeight: "100vh",
-          backgroundImage: "url('/image.png')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
+          minHeight: isMobile ? "70vh" : "100vh",
+          backgroundImage: "url('image.png')",
+          backgroundSize: isMobile ? "cover" : "cover",
+          backgroundPosition: isMobile ? "center center" : "center",
           backgroundRepeat: "no-repeat",
           position: "relative",
-          marginTop: "-4px", // Убираем зазор между блоками
+          marginTop: "250px",
           "&::before": {
             content: '""',
             position: "absolute",
-            top: 0, // Исправлено с 30 на 0
+            top: 0,
             left: 0,
             width: "100%",
             height: "100%",
             backgroundColor: "rgba(14, 65, 3, 0.4)",
             mixBlendMode: "multiply",
-            backdropFilter: "blur(4px)",
+            backdropFilter: "blur(3px)",
           },
         }}
       />
+
+      {/* Третий фон (исправленный) */}
+      <Box
+  sx={{
+    width: "100%",
+    minHeight: isMobile ? "70vh" : "100vh",
+    backgroundImage: "url('IMG_4707 (1).JPG')",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+    position: "relative",
+    zIndex: 1, // Оставляем z-index меньше чем у формы
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      backgroundColor: "rgba(14, 65, 3, 0.4)",
+      mixBlendMode: "multiply",
+      backdropFilter: "blur(2px)",
+      zIndex: 1
+    }
+  }}
+/>
     </Box>
   );
 };

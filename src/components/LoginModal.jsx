@@ -15,6 +15,9 @@ import { GoogleLogin } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
 
 const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
+  // Режим разработки (автоматически true в dev-среде)
+  const isDevMode = process.env.NODE_ENV === 'development';
+  
   const emailInputRef = useRef(null);
   const passwordInputRef = useRef(null);
   const resetEmailInputRef = useRef(null);
@@ -44,7 +47,12 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
   const [resetFormMessageType, setResetFormMessageType] = useState("error");
   const [resetSuccess, setResetSuccess] = useState(false);
 
-  // Загрузка сохраненного email при монтировании
+  // Mock-пользователи для тестирования
+  const mockUsers = [
+    { email: "user@test.com", password: "password123", fullName: "Test User" },
+    { email: "admin@test.com", password: "admin123", fullName: "Admin User" }
+  ];
+
   useEffect(() => {
     const savedEmail = localStorage.getItem("userEmail");
     if (savedEmail) {
@@ -53,7 +61,6 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     }
   }, []);
 
-  // Автофокус на поле ввода при открытии модального окна
   useEffect(() => {
     if (open) {
       setTimeout(() => {
@@ -68,19 +75,16 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     }
   }, [open, showResetForm, showResetPassword, isRegistering]);
 
-  // Обработка токена сброса пароля
   useEffect(() => {
     if (resetToken) setShowResetForm(true);
   }, [resetToken]);
 
-  // Обработка изменений в форме
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({ ...prevData, [name]: value }));
     if (error) setError("");
   };
 
-  // Валидация формы
   const validateForm = () => {
     if (!formData.email) return setError("Email is required");
     if (!formData.password) return setError("Password is required");
@@ -92,12 +96,59 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     return true;
   };
 
-  // Общая функция для авторизации и регистрации
+  // Универсальная функция авторизации/регистрации
   const handleAuth = async (url, body, isRegister = false) => {
     if (!validateForm()) return;
     setIsLoading(true);
     setError("");
 
+    // Mock-реализация (только в dev-режиме)
+    if (isDevMode) {
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Имитация задержки
+      
+      // Проверка для mock-пользователей
+      if (isRegister) {
+        // Mock-регистрация
+        const mockUser = {
+          token: `mock-token-${Date.now()}`,
+          email: body.email,
+          fullName: body.fullName
+        };
+        
+        if (rememberMe) localStorage.setItem("userEmail", body.email);
+        localStorage.setItem("isAuthenticated", "true");
+        localStorage.setItem("token", mockUser.token);
+        localStorage.setItem("userData", JSON.stringify(mockUser));
+        
+        onLogin(mockUser.token);
+        onClose();
+      } else {
+        // Mock-авторизация
+        const user = mockUsers.find(u => u.email === body.email && u.password === body.password);
+        
+        if (user) {
+          const mockUser = {
+            token: `mock-token-${user.email}`,
+            ...user
+          };
+          
+          if (rememberMe) localStorage.setItem("userEmail", body.email);
+          localStorage.setItem("isAuthenticated", "true");
+          localStorage.setItem("token", mockUser.token);
+          localStorage.setItem("userData", JSON.stringify(mockUser));
+          
+          onLogin(mockUser.token);
+          onClose();
+        } else {
+          setError("Invalid email or password");
+        }
+      }
+      
+      setIsLoading(false);
+      return;
+    }
+
+    // Реальная авторизация (продакшен)
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -111,10 +162,9 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
       if (rememberMe) localStorage.setItem("userEmail", formData.email);
       else localStorage.removeItem("userEmail");
 
-      // Устанавливаем авторизацию и уведомляем родителя
       localStorage.setItem("isAuthenticated", "true");
       localStorage.setItem("token", data.token);
-      onLogin && onLogin(); // Вызываем onLogin для обновления состояния в Header
+      onLogin(data.token);
       onClose();
     } catch (err) {
       setError(isRegister ? "Registration failed. Please try again." : "Authentication failed. Please check your credentials.");
@@ -124,17 +174,31 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     }
   };
 
-  // Обработка входа
-  const handleSignIn = () => handleAuth("http://localhost:8000/api/auth/login/", { email: formData.email, password: formData.password });
+  const handleSignIn = () => handleAuth("http://localhost:8000/api/auth/login/", { 
+    email: formData.email, 
+    password: formData.password 
+  });
 
-  // Обработка регистрации
-  const handleSignUp = () => handleAuth("http://localhost:8000/api/auth/register/", { email: formData.email, password: formData.password, fullName: formData.fullName }, true);
+  const handleSignUp = () => handleAuth("http://localhost:8000/api/auth/register/", { 
+    email: formData.email, 
+    password: formData.password, 
+    fullName: formData.fullName 
+  }, true);
 
-  // Обработка сброса пароля
   const handleResetPassword = async () => {
     if (!resetEmail) return setResetMessage("Please enter your email.") && setResetMessageType("error");
     setIsLoading(true);
     setResetMessage("");
+
+    // Mock-реализация
+    if (isDevMode) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setResetMessage("Mock: Reset instructions sent! Check your console");
+      setResetMessageType("success");
+      console.log(`Mock password reset link for: ${resetEmail}`);
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch("http://localhost:8000/password_reset_request/", {
@@ -155,7 +219,6 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     }
   };
 
-  // Обработка создания нового пароля
   const handleSubmitNewPassword = async () => {
     if (!newPassword) return setResetFormMessage("Password is required") && setResetFormMessageType("error");
     if (newPassword.length < 8) return setResetFormMessage("Password must be at least 8 characters") && setResetFormMessageType("error");
@@ -163,6 +226,16 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
 
     setIsLoading(true);
     setResetFormMessage("");
+
+    // Mock-реализация
+    if (isDevMode) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setResetSuccess(true);
+      setResetFormMessage("Mock: Password successfully reset!");
+      setResetFormMessageType("success");
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch("http://localhost:8000/password_reset_confirm/", {
@@ -190,10 +263,28 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     }
   };
 
-  // Обработка успешной авторизации через Google
   const handleGoogleSuccess = async (response) => {
     setIsLoading(true);
     setError("");
+
+    // Mock-реализация
+    if (isDevMode) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const mockUser = {
+        token: `google-mock-token-${Date.now()}`,
+        email: "google-user@example.com",
+        fullName: "Google User"
+      };
+      
+      localStorage.setItem("isAuthenticated", "true");
+      localStorage.setItem("token", mockUser.token);
+      localStorage.setItem("userData", JSON.stringify(mockUser));
+      
+      onLogin(mockUser.token);
+      onClose();
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const token = response.credential;
@@ -211,7 +302,7 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
       const data = await backendResponse.json();
       localStorage.setItem("isAuthenticated", "true");
       localStorage.setItem("token", data.token);
-      onLogin && onLogin(); // Вызываем onLogin для обновления состояния в Header
+      onLogin(data.token);
       onClose();
     } catch (error) {
       setError("Google authentication failed. Please try again.");
@@ -221,10 +312,8 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     }
   };
 
-  // Обработка ошибки авторизации через Google
   const handleGoogleFailure = () => setError("Google sign-in failed. Please try another method.");
 
-  // Обработка нажатия клавиши Enter
   const handleKeyPress = (e, action) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -232,7 +321,7 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     }
   };
 
-  // Рендер формы сброса пароля
+  // Остальной код компонента (рендер-функции) остается без изменений
   const renderResetPasswordForm = () => (
     <>
       <Typography variant="h6" sx={{ textAlign: "center", mb: 2 }}>Create New Password</Typography>
@@ -251,7 +340,6 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     </>
   );
 
-  // Рендер формы запроса сброса пароля
   const renderRequestResetForm = () => (
     <>
       <Typography variant="h6" sx={{ textAlign: "center", mb: 2 }}>Reset Password</Typography>
@@ -264,7 +352,6 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     </>
   );
 
-  // Рендер основной формы (вход/регистрация)
   const renderMainForm = () => (
     <>
       <Typography variant="h6" sx={{ textAlign: "center", mb: 2 }}>{isRegistering ? "Create an Account" : "Welcome Back!"}</Typography>

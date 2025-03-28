@@ -5,6 +5,7 @@ import AiMain from "../components/AiMain" ;// Убедись, что путь п
 import TextMain from "../components/TextMain" ;
 import Reviews from "../components/Reviews" ;
 import LoginModal from "../components/LoginModal" ;
+import ContactUs from "../components/ContactUs" ;
 
 
 const HomePage = () => {
@@ -17,7 +18,7 @@ const HomePage = () => {
       <TextMain/> 
       <Reviews/> 
       <LoginModal/>
-  
+      <ContactUs/>
    
 
       

@@ -24,18 +24,17 @@ const Reviews = () => {
         backgroundColor: "#D1653E",
         py: 3,
         textAlign: "center",
-        position: "absolute",
-        bottom: "300px",
         width: "100%",
         minHeight: 250,
         overflow: "hidden",
         zIndex: 20,
+        position: "absolute", // Фиксированное позиционирование
+        top: "550px", // Add margin to separate from the contact section
       }}
     >
       <Typography variant="h6" color="white" fontWeight="bold" gutterBottom>
         Real Stories, Real Impact
       </Typography>
-      
 
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
         <IconButton className="swiper-button-prev" sx={{ color: "white" }}>

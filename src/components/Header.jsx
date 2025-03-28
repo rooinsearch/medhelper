@@ -10,147 +10,330 @@ import {
   MenuItem,
   Modal,
   Box,
+  useMediaQuery,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  Avatar,
+  Badge
 } from "@mui/material";
-import { FaGlobe, FaMapMarkerAlt, FaSearch, FaUser } from "react-icons/fa";
+import { FaGlobe, FaMapMarkerAlt, FaSearch, FaUser, FaBars } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import LoginModal from "./LoginModal";
 
-const Header = () => {
+const Header = ({ isAuthenticated, onLogin, onLogout }) => {
   const [language, setLanguage] = useState("ENG");
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [languageAnchorEl, setLanguageAnchorEl] = useState(null);
   const [city, setCity] = useState(localStorage.getItem("selectedCity") || "Almaty");
   const [cityModalOpen, setCityModalOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    localStorage.getItem("isAuthenticated") === "true"
-  );
-
-  useEffect(() => {
-    localStorage.setItem("isAuthenticated", isAuthenticated);
-  }, [isAuthenticated]);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [unreadNotifications] = useState(2);
+  const isMobile = useMediaQuery("(max-width:900px)");
 
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handleLogin = () => {
-    setIsAuthenticated(true);
+  const handleSuccessfulLogin = (token) => {
+    onLogin(token);
     setAuthModalOpen(false);
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem("isAuthenticated");
-    localStorage.removeItem("token"); // Удаляем токен при выходе
-    navigate("/");
+  const navItems = [
+    { label: "Home", path: "/" },
+    { label: "CheckAI", path: "/checkai" },
+    { label: "Catalog of Tests", path: "/clinics" },
+    { label: "Clinic & Laboratories", path: "/specializations" },
+    { label: "Health Tips", path: "/health-tips" },
+    { label: "About Us", path: "/about-us" },
+    { label: "Help & Support", path: "/help-support" },
+  ];
+
+  const handleNavClick = (item) => {
+    if (item.path === "/help-support") {
+      if (location.pathname !== "/") {
+        navigate("/");
+      }
+      setTimeout(() => {
+        const element = document.getElementById("help-support");
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 100);
+    } else {
+      navigate(item.path);
+    }
+    setDrawerOpen(false);
+  };
+
+  const handleAvatarClick = () => {
+    navigate('/profile');
   };
 
   return (
     <>
-      <AppBar position="sticky" sx={{ backgroundColor: "#001A00", p: 1, top: 0, width: "100%", zIndex: 1000 }}>
-        <Toolbar sx={{ minHeight: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <AppBar position="sticky" sx={{ backgroundColor: "#001A00", p: isMobile ? 0 : 1, top: 0, width: "100%", zIndex: 1000 }}>
+        <Toolbar sx={{ 
+          minHeight: "20px", 
+          display: "flex", 
+          justifyContent: "space-between", 
+          alignItems: "center",
+          flexDirection: isMobile ? "row" : "row",
+          padding: isMobile ? "8px 0" : "inherit"
+        }}>
+          {/* Бургер меню для мобильных */}
+          {isMobile && (
+            <IconButton
+              color="inherit"
+              onClick={() => setDrawerOpen(true)}
+              sx={{ mr: 1 }}
+            >
+              <FaBars />
+            </IconButton>
+          )}
+
           {/* Логотип */}
-          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <Typography variant="h4" sx={{ fontWeight: "bold", lineHeight: 1 }}>MedHelper</Typography>
-            <Typography variant="caption" sx={{ opacity: 0.8, mt: 0.5 }}>Easier appointments. Smarter diagnoses. Powered by AI.</Typography>
+          <div style={{ 
+            display: "flex", 
+            flexDirection: "column", 
+            justifyContent: "center",
+            flexGrow: isMobile ? 1 : 0,
+            textAlign: isMobile ? "center" : "left"
+          }}>
+            <Typography variant={isMobile ? "h6" : "h4"} sx={{ fontWeight: "bold", lineHeight: 1 }}>MedHelper</Typography>
+            {!isMobile && (
+              <Typography variant="caption" sx={{ opacity: 0.8, mt: 0.5 }}>
+                Easier appointments. Smarter diagnoses. Powered by AI.
+              </Typography>
+            )}
           </div>
 
-          {/* Поисковая строка */}
-          <TextField
-            variant="outlined"
-            size="small"
-            placeholder="Enter the name of the test, clinic, or laboratory"
-            sx={{
-              backgroundColor: "white",
-              borderRadius: "20px",
-              width: "40%",
-              ml: "-20px",
-              "& .MuiOutlinedInput-root": { borderRadius: "20px", border: "none", boxShadow: "none", "& fieldset": { border: "none" } },
-              "& .MuiInputBase-root": { pl: 2 },
-            }}
-            InputProps={{ startAdornment: (<FaSearch style={{ marginRight: "8px", color: "gray" }} />) }}
-          />
+          {/* Поисковая строка - скрываем на мобильных */}
+          {!isMobile && (
+            <TextField
+              variant="outlined"
+              size="small"
+              placeholder="Enter the name of the test, clinic, or laboratory"
+              sx={{
+                backgroundColor: "white",
+                borderRadius: "20px",
+                width: "40%",
+                ml: "-20px",
+                "& .MuiOutlinedInput-root": { 
+                  borderRadius: "20px", 
+                  border: "none", 
+                  boxShadow: "none", 
+                  "& fieldset": { border: "none" } 
+                },
+                "& .MuiInputBase-root": { pl: 2 },
+              }}
+              InputProps={{ startAdornment: (<FaSearch style={{ marginRight: "8px", color: "gray" }} />) }}
+            />
+          )}
 
           {/* Город, язык, логин/профиль */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <IconButton color="inherit" onClick={() => setCityModalOpen(true)} sx={{ "&:hover": { color: "#FFA500" } }}>
-              <FaMapMarkerAlt />
-            </IconButton>
-            <Typography variant="body2">{city}</Typography>
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: isMobile ? "5px" : "10px",
+            marginLeft: isMobile ? "auto" : 0
+          }}>
+            {!isMobile && (
+              <>
+                <IconButton color="inherit" onClick={() => setCityModalOpen(true)} sx={{ "&:hover": { color: "#FFA500" } }}>
+                  <FaMapMarkerAlt />
+                </IconButton>
+                <Typography variant="body2">{city}</Typography>
+              </>
+            )}
 
-            <IconButton color="inherit" onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ "&:hover": { color: "#FFA500" } }}>
+            <IconButton 
+              color="inherit" 
+              onClick={(e) => setLanguageAnchorEl(e.currentTarget)} 
+              sx={{ "&:hover": { color: "#FFA500" } }}
+            >
               <FaGlobe />
             </IconButton>
-            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+            {!isMobile && <Typography variant="body2">{language}</Typography>}
+
+            <Menu 
+              anchorEl={languageAnchorEl} 
+              open={Boolean(languageAnchorEl)} 
+              onClose={() => setLanguageAnchorEl(null)}
+            >
               {["ENG", "KAZ", "RUS"].map((lang) => (
-                <MenuItem key={lang} onClick={() => { setLanguage(lang); setAnchorEl(null); }}>{lang}</MenuItem>
+                <MenuItem 
+                  key={lang} 
+                  onClick={() => { 
+                    setLanguage(lang); 
+                    setLanguageAnchorEl(null); 
+                  }}
+                >
+                  {lang}
+                </MenuItem>
               ))}
             </Menu>
-            <Typography variant="body2">{language}</Typography>
 
             {/* Логин / Профиль */}
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
               {isAuthenticated ? (
-                <>
-                  <IconButton color="inherit" component={Link} to="/profile" sx={{ "&:hover": { color: "#FFA500" } }}>
-                    <FaUser />
-                  </IconButton>
-                  <Button color="inherit" onClick={handleLogout} sx={{ "&:hover": { color: "#FFA500" } }}>Logout</Button>
-                </>
+                <IconButton 
+                  color="inherit" 
+                  onClick={handleAvatarClick}
+                  sx={{ "&:hover": { color: "#FFA500" } }}
+                >
+                  <Badge badgeContent={unreadNotifications} color="error">
+                    <motion.div whileHover={{ scale: 1.1 }}>
+                      <Avatar 
+                        sx={{ 
+                          width: 32, 
+                          height: 32,
+                          bgcolor: "#FFA500",
+                          fontSize: 14
+                        }}
+                      >
+                        U
+                      </Avatar>
+                    </motion.div>
+                  </Badge>
+                </IconButton>
               ) : (
-                <Button color="inherit" onClick={() => setAuthModalOpen(true)} sx={{ "&:hover": { color: "#FFA500" } }}>Log In</Button>
+                <Button 
+                  color="inherit" 
+                  onClick={() => setAuthModalOpen(true)} 
+                  sx={{ 
+                    "&:hover": { color: "#FFA500" },
+                    fontSize: isMobile ? "0.75rem" : "inherit"
+                  }}
+                >
+                  {isMobile ? "Login" : "Log In"}
+                </Button>
               )}
             </motion.div>
+
+            {/* Иконка города для мобильных */}
+            {isMobile && (
+              <IconButton color="inherit" onClick={() => setCityModalOpen(true)} sx={{ "&:hover": { color: "#FFA500" } }}>
+                <FaMapMarkerAlt />
+              </IconButton>
+            )}
           </div>
         </Toolbar>
 
-        {/* Навигация */}
-        <Toolbar sx={{ justifyContent: "center", minHeight: "40px" }}>
-          {[
-            { label: "Home", path: "/" },
-            { label: "CheckAI", path: "/checkai" },
-            { label: "Catalog of Tests", path: "/clinics" },
-            { label: "Clinic & Laboratories", path: "/specializations" },
-            { label: "Health Tips", path: "/health-tips" },
-            { label: "About Us", path: "/about-us" },
-            { label: "Help & Support", path: "/help-support" },
-          ].map((item) => (
-            <Button
-              key={item.path}
-              color="inherit"
-              component={Link}
-              to={item.path}
+        {/* Навигация для десктопа */}
+        {!isMobile && (
+          <Toolbar sx={{ justifyContent: "center", minHeight: "40px" }}>
+            {navItems.map((item) => (
+              <Button
+                key={item.path}
+                color="inherit"
+                onClick={() => handleNavClick(item)}
+                sx={{
+                  borderBottom: location.pathname === item.path ? "2px solid white" : "none",
+                  borderRadius: 0,
+                  mx: 1,
+                  fontSize: "12px",
+                  fontWeight: location.pathname === item.path ? "bold" : "normal",
+                  textTransform: "none",
+                  paddingY: "5px",
+                  "&:hover": { color: "#FFA500" },
+                }}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </Toolbar>
+        )}
+      </AppBar>
+
+      {/* Бургер меню для мобильных */}
+      <Drawer
+        anchor="left"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        sx={{
+          "& .MuiDrawer-paper": {
+            width: 250,
+            backgroundColor: "#001A00",
+            color: "white",
+          },
+        }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Typography variant="h6">MedHelper</Typography>
+          <Typography variant="caption" sx={{ opacity: 0.8 }}>
+            Easier appointments. Smarter diagnoses.
+          </Typography>
+        </Box>
+        <Divider sx={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
+        <List>
+          {navItems.map((item) => (
+            <ListItem 
+              button 
+              key={item.path} 
+              onClick={() => handleNavClick(item)}
               sx={{
                 borderBottom: location.pathname === item.path ? "2px solid white" : "none",
-                borderRadius: 0,
-                mx: 1,
-                fontSize: "12px",
-                fontWeight: location.pathname === item.path ? "bold" : "normal",
-                textTransform: "none",
-                paddingY: "5px",
                 "&:hover": { color: "#FFA500" },
               }}
             >
-              {item.label}
-            </Button>
+              <ListItemText primary={item.label} />
+            </ListItem>
           ))}
-        </Toolbar>
-      </AppBar>
+        </List>
+        <Divider sx={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
+        <Box sx={{ p: 2 }}>
+          <Typography variant="body2" sx={{ display: "flex", alignItems: "center" }}>
+            <FaMapMarkerAlt style={{ marginRight: 8 }} />
+            {city}
+          </Typography>
+          <Typography variant="body2" sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+            <FaGlobe style={{ marginRight: 8 }} />
+            {language}
+          </Typography>
+        </Box>
+      </Drawer>
 
       {/* Модальное окно входа */}
       <LoginModal 
         open={authModalOpen} 
         onClose={() => setAuthModalOpen(false)} 
-        onLogin={handleLogin} 
+        onLogin={handleSuccessfulLogin} 
       />
 
       {/* Модальное окно выбора города */}
       <Modal open={cityModalOpen} onClose={() => setCityModalOpen(false)}>
-        <Box sx={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", bgcolor: "white", boxShadow: 24, p: 3, borderRadius: "10px", minWidth: "250px", textAlign: "center" }}>
+        <Box sx={{ 
+          position: "absolute", 
+          top: "50%", 
+          left: "50%", 
+          transform: "translate(-50%, -50%)", 
+          bgcolor: "white", 
+          boxShadow: 24, 
+          p: 3, 
+          borderRadius: "10px", 
+          minWidth: "250px", 
+          textAlign: "center",
+          width: isMobile ? "80%" : "auto"
+        }}>
           <Typography variant="h6" sx={{ mb: 2 }}>Choose your city</Typography>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {["Almaty", "Astana"].map((cityOption) => (
-              <MenuItem key={cityOption} onClick={() => { setCity(cityOption); setCityModalOpen(false); }} sx={{ "&:hover": { color: "#FFA500" }, cursor: "pointer" }}>
+              <MenuItem 
+                key={cityOption} 
+                onClick={() => { 
+                  setCity(cityOption); 
+                  setCityModalOpen(false); 
+                  localStorage.setItem("selectedCity", cityOption);
+                }} 
+                sx={{ 
+                  "&:hover": { color: "#FFA500" }, 
+                  cursor: "pointer" 
+                }}
+              >
                 {cityOption}
               </MenuItem>
             ))}
