@@ -31,4 +31,4 @@ const TextMain = () => {
   );
 };
 
-export default TextMain;
+export default TextMain;   
