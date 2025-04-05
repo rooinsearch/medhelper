@@ -14,18 +14,17 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 
-// API configuration
+
 const API_URL = 'http://localhost:8000/api';
 const api = axios.create({ baseURL: API_URL });
 
-// Cache for storing fetched data
 const dataCache = {
   categories: null,
   articles: {},
   savedArticles: null
 };
 
-// Skeleton Loader for Article Cards
+
 const ArticleCardSkeleton = () => (
   <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
     <Skeleton variant="rectangular" height={160} />
@@ -39,7 +38,7 @@ const ArticleCardSkeleton = () => (
   </Card>
 );
 
-// ArticleCard component extracted
+
 const ArticleCard = React.memo(({ article, savedArticles, handleBookmarkClick, handleArticleOpen }) => (
   <Card sx={{ 
     height: '100%', 

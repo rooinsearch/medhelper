@@ -1,7 +1,8 @@
 import React from "react";
 
 const TestHistory = () => {
-  // Пример данных истории тестов
+
+  
   const testHistory = [
     { id: 1, date: "2023-05-15", testName: "React Basics", score: "85%" },
     { id: 2, date: "2023-06-20", testName: "JavaScript Advanced", score: "78%" },

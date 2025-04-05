@@ -12,7 +12,7 @@ import axios from "axios";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || "ваш_api_ключ_здесь";
 
-// Пример функции для отправки запроса
+
 async function sendToGemini(prompt) {
   try {
     const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
