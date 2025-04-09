@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   AppBar,
   Toolbar,
@@ -19,12 +19,12 @@ import {
   Avatar,
   Badge
 } from "@mui/material";
-import { FaGlobe, FaMapMarkerAlt, FaSearch, FaUser, FaBars } from "react-icons/fa";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { FaGlobe, FaMapMarkerAlt, FaSearch, FaBars } from "react-icons/fa";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import LoginModal from "./LoginModal";
 
-const Header = ({ isAuthenticated, onLogin, onLogout }) => {
+const Header = ({ isAuthenticated, onLogin }) => {
   const [language, setLanguage] = useState("ENG");
   const [languageAnchorEl, setLanguageAnchorEl] = useState(null);
   const [city, setCity] = useState(localStorage.getItem("selectedCity") || "Almaty");
@@ -45,10 +45,9 @@ const Header = ({ isAuthenticated, onLogin, onLogout }) => {
   const navItems = [
     { label: "Home", path: "/" },
     { label: "CheckAI", path: "/checkai" },
-    { label: "Catalog of Tests", path: "/clinics" },
-    { label: "Clinic & Laboratories", path: "/specializations" },
+    { label: "Catalog of Tests", path: "/catalog-of-tests" }, // Измененный путь
+    { label: "Clinics & Laboratories", path: "/clinics" },
     { label: "Health Tips", path: "/health-tips" },
-    { label: "About Us", path: "/about-us" },
     { label: "Help & Support", path: "/help-support" },
   ];
 
@@ -84,7 +83,6 @@ const Header = ({ isAuthenticated, onLogin, onLogout }) => {
           flexDirection: isMobile ? "row" : "row",
           padding: isMobile ? "8px 0" : "inherit"
         }}>
-          {/* Бургер меню для мобильных */}
           {isMobile && (
             <IconButton
               color="inherit"
@@ -95,7 +93,6 @@ const Header = ({ isAuthenticated, onLogin, onLogout }) => {
             </IconButton>
           )}
 
-          {/* Логотип */}
           <div style={{ 
             display: "flex", 
             flexDirection: "column", 
@@ -111,7 +108,6 @@ const Header = ({ isAuthenticated, onLogin, onLogout }) => {
             )}
           </div>
 
-          {/* Поисковая строка - скрываем на мобильных */}
           {!isMobile && (
             <TextField
               variant="outlined"
@@ -134,7 +130,6 @@ const Header = ({ isAuthenticated, onLogin, onLogout }) => {
             />
           )}
 
-          {/* Город, язык, логин/профиль */}
           <div style={{ 
             display: "flex", 
             alignItems: "center", 
@@ -177,7 +172,6 @@ const Header = ({ isAuthenticated, onLogin, onLogout }) => {
               ))}
             </Menu>
 
-            {/* Логин / Профиль */}
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
               {isAuthenticated ? (
                 <IconButton 
@@ -214,7 +208,6 @@ const Header = ({ isAuthenticated, onLogin, onLogout }) => {
               )}
             </motion.div>
 
-            {/* Иконка города для мобильных */}
             {isMobile && (
               <IconButton color="inherit" onClick={() => setCityModalOpen(true)} sx={{ "&:hover": { color: "#FFA500" } }}>
                 <FaMapMarkerAlt />
@@ -223,7 +216,6 @@ const Header = ({ isAuthenticated, onLogin, onLogout }) => {
           </div>
         </Toolbar>
 
-        {/* Навигация для десктопа */}
         {!isMobile && (
           <Toolbar sx={{ justifyContent: "center", minHeight: "40px" }}>
             {navItems.map((item) => (
@@ -249,7 +241,6 @@ const Header = ({ isAuthenticated, onLogin, onLogout }) => {
         )}
       </AppBar>
 
-      {/* Бургер меню для мобильных */}
       <Drawer
         anchor="left"
         open={drawerOpen}
@@ -297,14 +288,12 @@ const Header = ({ isAuthenticated, onLogin, onLogout }) => {
         </Box>
       </Drawer>
 
-      {/* Модальное окно входа */}
       <LoginModal 
         open={authModalOpen} 
         onClose={() => setAuthModalOpen(false)} 
         onLogin={handleSuccessfulLogin} 
       />
 
-      {/* Модальное окно выбора города */}
       <Modal open={cityModalOpen} onClose={() => setCityModalOpen(false)}>
         <Box sx={{ 
           position: "absolute", 

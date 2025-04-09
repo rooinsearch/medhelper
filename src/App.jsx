@@ -6,6 +6,7 @@ import HealthTips from "./pages/HealthTips.jsx";
 import CheckAI from "./pages/CheckAI.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import ProfileSidebar from './components/ProfileSidebar';
+import CatalogPage from "./pages/CatalogPage.jsx";
 import "./App.css";
 
 function App() {
@@ -54,6 +55,15 @@ function App() {
           } 
         />
         <Route path="*" element={<Navigate to="/" />} />
+        <Route 
+           path="/catalog-of-tests"
+          element=
+            {isAuthenticated ? (
+                <CatalogPage />
+        ) : (
+          <Navigate to="/" replace />
+         )} 
+       />
       </Routes>
     </Router>
   );
