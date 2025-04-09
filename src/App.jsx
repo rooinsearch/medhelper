@@ -44,6 +44,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/health-tips" element={<HealthTips />} />
         <Route path="/checkai" element={<CheckAI />} />
+        <Route path="/analysis-requst" element={<CatalogPage />} />
         <Route 
           path="/profile" 
           element={

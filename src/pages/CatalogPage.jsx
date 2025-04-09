@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box, Grid, Typography, Button, Card, Chip,
   CardContent, CardActions, IconButton, TextField,
   Slider, Pagination, ToggleButton, ToggleButtonGroup,
-  Collapse, Divider, Rating
+  Collapse
 } from '@mui/material';
 import {
-  BookmarkBorder, Bookmark, ShoppingCart, Search,
+  BookmarkBorder, ShoppingCart, Search,
   KeyboardArrowDown, KeyboardArrowUp
 } from '@mui/icons-material';
-// Import the standalone TestDetailsModal component
-import TestDetailsModal from '../components/TestDetailsModal';// Adjust the path as needed
+import axios from 'axios';
+
+import TestDetailsModal from '../components/TestDetailsModal';
+
+const API_URL = 'http://localhost:8000/api';
+const api = axios.create({ baseURL: API_URL });
 
 const medicalBackground = `
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
@@ -118,34 +122,10 @@ const allCategories = [
   'Endocrinology', 'Cardiology', 'Nephrology', 'Gastroenterology'
 ];
 
-const turnaroundTimes = ['Within 24 hours', '1-3 days', 'More than 3 days'];
 
-const testData = Array.from({ length: 20 }, (_, i) => ({
-  id: i + 1,
-  title: `Medical Test ${i + 1}`,
-  lab: allLaboratories[Math.floor(Math.random() * allLaboratories.length)],
-  category: allCategories[Math.floor(Math.random() * allCategories.length)],
-  price: Math.floor(Math.random() * 40000) + 1000,
-  ready: ['Within 1 day', '1-3 days', 'More than 3 days'][Math.floor(Math.random() * 3)],
-  description: "A comprehensive blood test that measures various markers to assess your health status.",
-  rating: (Math.random() * 2 + 3).toFixed(1),
-  reviews: Math.floor(Math.random() * 5000) + 100,
-  reviewsData: [
-    {
-      author: "Ardak Aruzhan",
-      date: "1 Jan",
-      rating: 5,
-      text: "I had a Vitamin D test done painless. I received the result quickly."
-    },
-    {
-      author: "Alex Smith",
-      date: "15 Feb",
-      rating: 4,
-      text: "Good service but waiting time was longer than expected."
-    }
-  ]
-}));
+const turnaroundTimes = ['Within 1 day', '1-3 days', 'More than 3 days'];
 
+/** Компонент фильтра — оставляем дизайн как есть */
 const FilterSection = ({ title, items, selected, onChange, color = 'success' }) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -200,6 +180,11 @@ const FilterSection = ({ title, items, selected, onChange, color = 'success' }) 
 };
 
 const CatalogPage = () => {
+  const [testData, setTestData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Фильтры
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedLabs, setSelectedLabs] = useState([]);
   const [selectedTurnaround, setSelectedTurnaround] = useState([]);
@@ -207,10 +192,43 @@ const CatalogPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState('priceAsc');
   const [page, setPage] = useState(1);
+
+  // Модалка
   const [selectedTest, setSelectedTest] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const itemsPerPage = 9;
 
+  //axios
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+
+    api.get('/analysis/')
+      .then((response) => {
+        const adapted = response.data.map(item => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          rating: parseFloat(item.rating.toFixed(1)), 
+          reviews: item.reviews,
+          reviewsData: item.reviews_data || [], // Если хотим хранить тут же
+          category: item.category,
+          lab: item.lab,
+          price: parseFloat(item.price),
+          ready: item.ready
+        }));
+        setTestData(adapted);
+      })
+      .catch((err) => {
+        console.error('Error fetching analysis:', err);
+        setError(err.message || 'Error fetching analysis');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  // xэндлеры
   const handleTestClick = (test) => {
     setSelectedTest(test);
     setModalOpen(true);
@@ -230,31 +248,8 @@ const CatalogPage = () => {
     filterMap[filter](prev => 
       prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
     );
-    setPage(1); // Reset to first page when filters change
+    setPage(1);
   };
-
-  const filteredTests = testData.filter(test => {
-    const matchesCategory = !selectedCategories.length || selectedCategories.includes(test.category);
-    const matchesLab = !selectedLabs.length || selectedLabs.includes(test.lab);
-    const matchesTurnaround = !selectedTurnaround.length || selectedTurnaround.some(time => 
-      (time === 'Within 24 hours' && test.ready.includes('1 day')) ||
-      (time === '1-3 days' && test.ready.includes('1-3')) ||
-      (time === 'More than 3 days' && test.ready.includes('More than 3'))
-    );
-    const matchesPrice = test.price >= priceRange[0] && test.price <= priceRange[1];
-    const matchesSearch = !searchQuery || 
-      [test.title, test.lab, test.category].some(f => f.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesCategory && matchesLab && matchesTurnaround && matchesPrice && matchesSearch;
-  });
-
-  const sortedTests = [...filteredTests].sort((a, b) => 
-    sortOrder === 'priceAsc' ? a.price - b.price :
-    sortOrder === 'priceDesc' ? b.price - a.price :
-    a.title.localeCompare(b.title)
-  );
-
-  const paginatedTests = sortedTests.slice((page - 1) * itemsPerPage, page * itemsPerPage);
-  const pageCount = Math.ceil(sortedTests.length / itemsPerPage);
 
   const handleResetFilters = () => {
     setSelectedCategories([]);
@@ -265,6 +260,32 @@ const CatalogPage = () => {
     setPage(1);
   };
 
+  // Фильтрация
+  const filteredTests = testData.filter(test => {
+    const matchesCategory = !selectedCategories.length || selectedCategories.includes(test.category);
+    const matchesLab = !selectedLabs.length || selectedLabs.includes(test.lab);
+    const matchesTurnaround = !selectedTurnaround.length || selectedTurnaround.includes(test.ready);
+    const matchesPrice = test.price >= priceRange[0] && test.price <= priceRange[1];
+    const matchesSearch = !searchQuery || 
+      [test.title, test.lab, test.category].some(field =>
+        field.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    return matchesCategory && matchesLab && matchesTurnaround && matchesPrice && matchesSearch;
+  });
+
+  // Сортировка
+  const sortedTests = [...filteredTests].sort((a, b) => {
+    if (sortOrder === 'priceAsc') return a.price - b.price;
+    if (sortOrder === 'priceDesc') return b.price - a.price;
+    // nameAsc
+    return a.title.localeCompare(b.title);
+  });
+
+  // Пагинация
+  const paginatedTests = sortedTests.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+  const pageCount = Math.ceil(sortedTests.length / itemsPerPage);
+
+  // Стили
   const filterPanelStyle = {
     width: { xs: '100%', md: 280 },
     p: 3,
@@ -300,6 +321,26 @@ const CatalogPage = () => {
       boxShadow: '0 6px 20px rgba(0,0,0,0.1)'
     }
   };
+
+  // Если идёт загрузка
+  if (loading) {
+    return (
+      <Box sx={{ textAlign: 'center', py: 6 }}>
+        <Typography variant="h6">Loading...</Typography>
+      </Box>
+    );
+  }
+
+  // Если ошибка
+  if (error) {
+    return (
+      <Box sx={{ textAlign: 'center', py: 6 }}>
+        <Typography variant="h6" color="error">
+          Error: {error}
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: '100vh', bgcolor: '#f5f5f5' }}>
@@ -400,7 +441,13 @@ const CatalogPage = () => {
 
       {/* Results Section */}
       <Box sx={{ flex: 1, p: 3 }}>
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 3 }}>
+        <Box sx={{ 
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          mb: 3
+        }}>
           <Typography variant="h6" color="text.primary" sx={{ mb: { xs: 2, sm: 0 } }}>
             Found {filteredTests.length} tests
           </Typography>
@@ -447,10 +494,13 @@ const CatalogPage = () => {
                           color="success" 
                           sx={{ color: 'white', mb: 1 }} 
                         />
-                        <IconButton size="small" onClick={(e) => {
-                          e.stopPropagation();
-                          // Handle bookmark click
-                        }}>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // TODO: handle bookmark
+                          }}
+                        >
                           <BookmarkBorder fontSize="small" />
                         </IconButton>
                       </Box>
@@ -460,22 +510,29 @@ const CatalogPage = () => {
                       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                         {test.lab}
                       </Typography>
-                      <Typography variant="body2" sx={{ 
-                        mt: 1,
-                        color: test.ready.includes('1 day') ? 'success.main' :
-                               test.ready.includes('1-3') ? 'warning.main' : 'error.main'
-                      }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          mt: 1,
+                          color:
+                            test.ready === 'Within 1 day'
+                              ? 'success.main'
+                              : test.ready === '1-3 days'
+                              ? 'warning.main'
+                              : 'error.main'
+                        }}
+                      >
                         {test.ready}
                       </Typography>
                     </CardContent>
                     <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
                       <Typography fontWeight="bold">{test.price.toLocaleString()} ₸</Typography>
-                      <IconButton 
-                        color="primary" 
+                      <IconButton
+                        color="primary"
                         size="small"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Handle add to cart
+                          // TODO: handle add to cart
                         }}
                       >
                         <ShoppingCart fontSize="small" />
@@ -501,11 +558,11 @@ const CatalogPage = () => {
         )}
       </Box>
 
-      {/* Test Details Modal - using the imported component */}
-      <TestDetailsModal 
-        open={modalOpen} 
-        handleClose={handleCloseModal} 
-        test={selectedTest} 
+      {/* Модальное окно с деталями */}
+      <TestDetailsModal
+        open={modalOpen}
+        handleClose={handleCloseModal}
+        test={selectedTest}
       />
     </Box>
   );
