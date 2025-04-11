@@ -7,6 +7,7 @@ import CheckAI from "./pages/CheckAI.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import ProfileSidebar from './components/ProfileSidebar';
 import CatalogPage from "./pages/CatalogPage.jsx";
+import Cart from "./pages/CartPage.jsx";
 import "./App.css";
 
 function App() {
@@ -45,6 +46,7 @@ function App() {
         <Route path="/health-tips" element={<HealthTips />} />
         <Route path="/checkai" element={<CheckAI />} />
         <Route path="/analysis-requst" element={<CatalogPage />} />
+        <Route path="/cart" element={<Cart />} />
         <Route 
           path="/profile" 
           element={

@@ -20,11 +20,12 @@ import {
   Badge
 } from "@mui/material";
 import { FaGlobe, FaMapMarkerAlt, FaSearch, FaBars } from "react-icons/fa";
+import { ShoppingCart as ShoppingCartIcon } from '@mui/icons-material';
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import LoginModal from "./LoginModal";
 
-const Header = ({ isAuthenticated, onLogin }) => {
+const Header = ({ isAuthenticated, onLogin, cartItemCount = 0 }) => {
   const [language, setLanguage] = useState("ENG");
   const [languageAnchorEl, setLanguageAnchorEl] = useState(null);
   const [city, setCity] = useState(localStorage.getItem("selectedCity") || "Almaty");
@@ -45,10 +46,11 @@ const Header = ({ isAuthenticated, onLogin }) => {
   const navItems = [
     { label: "Home", path: "/" },
     { label: "CheckAI", path: "/checkai" },
-    { label: "Catalog of Tests", path: "/catalog-of-tests" }, // Измененный путь
+    { label: "Catalog of Tests", path: "/catalog-of-tests" },
     { label: "Clinics & Laboratories", path: "/clinics" },
     { label: "Health Tips", path: "/health-tips" },
     { label: "Help & Support", path: "/help-support" },
+    { label: "Cart", path: "/cart" }  // новый пункт
   ];
 
   const handleNavClick = (item) => {
@@ -69,7 +71,11 @@ const Header = ({ isAuthenticated, onLogin }) => {
   };
 
   const handleAvatarClick = () => {
-    navigate('/profile');
+    navigate("/profile");
+  };
+
+  const handleCartClick = () => {
+    navigate("/cart");
   };
 
   return (
@@ -84,11 +90,7 @@ const Header = ({ isAuthenticated, onLogin }) => {
           padding: isMobile ? "8px 0" : "inherit"
         }}>
           {isMobile && (
-            <IconButton
-              color="inherit"
-              onClick={() => setDrawerOpen(true)}
-              sx={{ mr: 1 }}
-            >
+            <IconButton color="inherit" onClick={() => setDrawerOpen(true)} sx={{ mr: 1 }}>
               <FaBars />
             </IconButton>
           )}
@@ -145,64 +147,31 @@ const Header = ({ isAuthenticated, onLogin }) => {
               </>
             )}
 
-            <IconButton 
-              color="inherit" 
-              onClick={(e) => setLanguageAnchorEl(e.currentTarget)} 
-              sx={{ "&:hover": { color: "#FFA500" } }}
-            >
+            <IconButton color="inherit" onClick={(e) => setLanguageAnchorEl(e.currentTarget)} sx={{ "&:hover": { color: "#FFA500" } }}>
               <FaGlobe />
             </IconButton>
             {!isMobile && <Typography variant="body2">{language}</Typography>}
 
-            <Menu 
-              anchorEl={languageAnchorEl} 
-              open={Boolean(languageAnchorEl)} 
-              onClose={() => setLanguageAnchorEl(null)}
-            >
-              {["ENG", "KAZ", "RUS"].map((lang) => (
-                <MenuItem 
-                  key={lang} 
-                  onClick={() => { 
-                    setLanguage(lang); 
-                    setLanguageAnchorEl(null); 
-                  }}
-                >
-                  {lang}
-                </MenuItem>
-              ))}
-            </Menu>
+            {/* Если пользователь авторизован, показываем иконку корзины */}
+            {isAuthenticated && (
+              <IconButton color="inherit" onClick={handleCartClick} sx={{ "&:hover": { color: "#FFA500" } }}>
+                <Badge badgeContent={cartItemCount} color="error">
+                  <ShoppingCartIcon />
+                </Badge>
+              </IconButton>
+            )}
 
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
               {isAuthenticated ? (
-                <IconButton 
-                  color="inherit" 
-                  onClick={handleAvatarClick}
-                  sx={{ "&:hover": { color: "#FFA500" } }}
-                >
+                <IconButton color="inherit" onClick={handleAvatarClick} sx={{ "&:hover": { color: "#FFA500" } }}>
                   <Badge badgeContent={unreadNotifications} color="error">
                     <motion.div whileHover={{ scale: 1.1 }}>
-                      <Avatar 
-                        sx={{ 
-                          width: 32, 
-                          height: 32,
-                          bgcolor: "#FFA500",
-                          fontSize: 14
-                        }}
-                      >
-                        U
-                      </Avatar>
+                      <Avatar sx={{ width: 32, height: 32, bgcolor: "#FFA500", fontSize: 14 }}>U</Avatar>
                     </motion.div>
                   </Badge>
                 </IconButton>
               ) : (
-                <Button 
-                  color="inherit" 
-                  onClick={() => setAuthModalOpen(true)} 
-                  sx={{ 
-                    "&:hover": { color: "#FFA500" },
-                    fontSize: isMobile ? "0.75rem" : "inherit"
-                  }}
-                >
+                <Button color="inherit" onClick={() => setAuthModalOpen(true)} sx={{ "&:hover": { color: "#FFA500" }, fontSize: isMobile ? "0.75rem" : "inherit" }}>
                   {isMobile ? "Login" : "Log In"}
                 </Button>
               )}
@@ -246,11 +215,7 @@ const Header = ({ isAuthenticated, onLogin }) => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         sx={{
-          "& .MuiDrawer-paper": {
-            width: 250,
-            backgroundColor: "#001A00",
-            color: "white",
-          },
+          "& .MuiDrawer-paper": { width: 250, backgroundColor: "#001A00", color: "white" },
         }}
       >
         <Box sx={{ p: 2 }}>
@@ -262,9 +227,9 @@ const Header = ({ isAuthenticated, onLogin }) => {
         <Divider sx={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
         <List>
           {navItems.map((item) => (
-            <ListItem 
-              button 
-              key={item.path} 
+            <ListItem
+              button
+              key={item.path}
               onClick={() => handleNavClick(item)}
               sx={{
                 borderBottom: location.pathname === item.path ? "2px solid white" : "none",
@@ -318,10 +283,7 @@ const Header = ({ isAuthenticated, onLogin }) => {
                   setCityModalOpen(false); 
                   localStorage.setItem("selectedCity", cityOption);
                 }} 
-                sx={{ 
-                  "&:hover": { color: "#FFA500" }, 
-                  cursor: "pointer" 
-                }}
+                sx={{ "&:hover": { color: "#FFA500" }, cursor: "pointer" }}
               >
                 {cityOption}
               </MenuItem>

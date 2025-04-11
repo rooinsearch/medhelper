@@ -29,8 +29,20 @@ const ProfileSidebar = () => {
 
   const toggleDrawer = () => setOpen(!open);
 
+  // Рабочая функция логаута:
   const handleLogout = () => {
+    // Удаляем данные авторизации из localStorage
+    localStorage.removeItem("isAuthenticated");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("userData");
+    localStorage.removeItem("userEmail");
+    
     console.log('User logged out');
+    
+    // Можно сделать редирект на страницу логина или перезагрузку страницы
+    // Например, если используете react-router-dom, можно вызвать navigate('/login')
+    // Здесь просто перезагрузим страницу:
+    window.location.reload();
   };
 
   const handleSectionSelect = (sectionId) => {
@@ -50,7 +62,7 @@ const ProfileSidebar = () => {
     <Box sx={{ 
       display: 'flex', 
       height: '100vh',
-      backgroundColor: '#f1f1f1' // Light gray background like in MedHelper
+      backgroundColor: '#f1f1f1'
     }}>
       <IconButton
         onClick={toggleDrawer}
@@ -165,7 +177,6 @@ const ProfileSidebar = () => {
           flexDirection: 'column'
         }}
       >
-        {/* Rendered content based on active section */}
         <Box 
           sx={{ 
             width: '100%',
@@ -175,13 +186,12 @@ const ProfileSidebar = () => {
             height: '100%'
           }}
         >
-          {/* Main content area - large container like in MedHelper */}
           <Box 
             sx={{ 
               flex: '1 1 auto',
               backgroundColor: 'white',
-              borderRadius: 3, // More rounded corners like in MedHelper
-              boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.08)', // Softer shadow like in MedHelper
+              borderRadius: 3,
+              boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.08)',
               p: 4,
               overflow: 'hidden',
               display: 'flex',
@@ -199,7 +209,6 @@ const ProfileSidebar = () => {
             )}
           </Box>
           
-          {/* Optional right sidebar for additional options as shown in MedHelper */}
           {activeSection === 'profile' && (
             <Box 
               sx={{ 
@@ -214,12 +223,10 @@ const ProfileSidebar = () => {
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 500 }}>
                 Notification Settings
               </Typography>
-              {/* You'll add notification settings UI here */}
               <Box sx={{ mt: 4 }}>
                 <Typography variant="h6" sx={{ mb: 2, fontWeight: 500 }}>
                   Language Selection
                 </Typography>
-                {/* You'll add language selection UI here */}
               </Box>
             </Box>
           )}

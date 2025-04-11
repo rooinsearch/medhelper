@@ -1,15 +1,33 @@
 import React, { useState } from 'react';
 import {
-  Box, Modal, Typography, Button, Divider, IconButton, Rating,
-  TextField, Stack, Avatar, Chip, CircularProgress, Snackbar, Alert
+  Box,
+  Modal,
+  Typography,
+  Button,
+  Divider,
+  IconButton,
+  Rating,
+  TextField,
+  Stack,
+  Avatar,
+  Chip,
+  CircularProgress,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import {
-  BookmarkBorder as BookmarkBorderIcon, Bookmark as BookmarkIcon,
-  Close as CloseIcon, CalendarToday as CalendarTodayIcon,
-  AccessTime as AccessTimeIcon, Info as InfoIcon,
-  FavoriteBorder as FavoriteBorderIcon, Favorite as FavoriteIcon,
-  ShoppingCart as ShoppingCartIcon, ArrowForward as ArrowForwardIcon
+  BookmarkBorder as BookmarkBorderIcon,
+  Bookmark as BookmarkIcon,
+  Close as CloseIcon,
+  CalendarToday as CalendarTodayIcon,
+  AccessTime as AccessTimeIcon,
+  Info as InfoIcon,
+  FavoriteBorder as FavoriteBorderIcon,
+  Favorite as FavoriteIcon,
+  ShoppingCart as ShoppingCartIcon,
+  ArrowForward as ArrowForwardIcon
 } from '@mui/icons-material';
+import api from '../api/axios';  
 
 const primaryColor = '#1a5f1a';
 const primaryLight = '#4a8c4a';
@@ -40,14 +58,13 @@ const modalStyle = {
   scrollbarColor: `${primaryColor} #f1f1f1`
 };
 
-
 const defaultTest = {
   title: "Vitamin D (25-OH)",
   description: "A blood test to measure vitamin D levels in your body.",
-  lab: "Invivo Clinical Labs", 
+  lab: "Invivo Clinical Labs",
   labId: "invivo-labs",
-  price: 20000, 
-  ready: "1 day", 
+  price: 20000,
+  ready: "1 day",
   rating: 4.9,
   reviews: 3710,
   about: "This test measures 25-hydroxyvitamin D concentration in blood...",
@@ -62,19 +79,16 @@ const defaultTest = {
     { name: "Parathyroid Hormone", price: 20000, ready: "1 day" },
     { name: "Complete Blood Count", price: 25000, ready: "1 day" }
   ],
-  // В реальности с бэка приходит test.reviewsData,
-  // но здесь как fallback
   reviewsData: [
     {
       name: "Ardak Aruzhan",
       rating: 5,
       text: "Painless test with quick results. The staff was very professional.",
       date: "15 March 2025"
-    },
+    }
   ]
 };
 
-// Доступные даты/время (захардкожено) если не нужна логика с бэка
 const availableDates = ['2025-04-15', '2025-04-16', '2025-04-17', '2025-04-18', '2025-04-19'];
 const availableTimes = ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
 
@@ -88,7 +102,6 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
 
-  // Сливаем реальный test (если есть) с defaultTest, чтобы заполнить пропущенные поля
   const currentTest = { ...defaultTest, ...test };
 
   const handleCloseSnackbar = (event, reason) => {
@@ -103,30 +116,26 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
 
   const handleAddToCart = () => {
     setIsLoading(true);
-    setTimeout(() => {
-      const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+    const requestData = {
+      analysis_id: currentTest.id,
+      quantity: 1,
+      scheduled_date: selectedDate, // формат YYYY-MM-DD
+      scheduled_time: selectedTime  // например, "09:00"
+    };
+    console.log("Sending POST to /cart/add/ with data:", requestData);
+    api.post('/cart/add/', requestData)
+      .then((res) => {
+        console.log("Response from /cart/add/:", res);
+        showNotification(`${currentTest.title} added to cart`);
+        setIsLoading(false);
+        setTimeout(handleClose, 1500);
+        if (window.updateCartBadge) window.updateCartBadge();
+      })
+      .catch((err) => {
+        console.error("Error adding to cart:", err);
+        showNotification("Error adding to cart", "error");
+        setIsLoading(false);
       });
-      
-      const cartItem = {
-        id: Date.now(),
-        title: currentTest.title,
-        lab: currentTest.lab,
-        date: formattedDate,
-        time: selectedTime,
-        price: currentTest.price
-      };
-      
-      const currentCart = JSON.parse(localStorage.getItem('medCart') || '[]');
-      localStorage.setItem('medCart', JSON.stringify([...currentCart, cartItem]));
-      
-      showNotification(`${currentTest.title} added to cart`);
-      setIsLoading(false);
-      setTimeout(handleClose, 1500);
-      if (window.updateCartBadge) window.updateCartBadge();
-    }, 1000);
   };
 
   const toggleBookmark = () => {
@@ -136,28 +145,31 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
       isBookmarked ? 'info' : 'success'
     );
   };
-  
+
   const handleAddRelatedTest = (relatedTest) => {
-    const cartItem = {
-      id: Date.now(),
-      title: relatedTest.name,
-      lab: currentTest.lab,
-      date: "Not scheduled yet",
-      time: "Not scheduled yet",
-      price: relatedTest.price
+    const requestData = {
+      analysis_id: relatedTest.id || currentTest.id,
+      quantity: 1
     };
-    const currentCart = JSON.parse(localStorage.getItem('medCart') || '[]');
-    localStorage.setItem('medCart', JSON.stringify([...currentCart, cartItem]));
-    showNotification(`${relatedTest.name} added to cart`);
-    if (window.updateCartBadge) window.updateCartBadge();
+    console.log("Sending POST to /cart/add/ for related test with data:", requestData);
+    api.post('/cart/add/', requestData)
+      .then((res) => {
+        console.log("Response from related test add:", res);
+        showNotification(`${relatedTest.name} added to cart`);
+        if (window.updateCartBadge) window.updateCartBadge();
+      })
+      .catch((err) => {
+        console.error("Error adding related test:", err);
+        showNotification("Error adding test", "error");
+      });
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric', 
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
       year: 'numeric'
     });
   };
@@ -187,7 +199,7 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
   const renderDetailsTab = () => (
     <>
       <Typography paragraph sx={{ lineHeight: 1.7 }}>{currentTest.description}</Typography>
-      <Box sx={{ 
+      <Box sx={{
         bgcolor: 'rgba(0, 0, 0, 0.03)',
         p: 3,
         borderRadius: 2,
@@ -257,7 +269,6 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
 
   const renderReviewsTab = () => (
     <Box>
-      {/* currentTest.reviewsData берётся из бэка или из defaultTest */}
       {currentTest.reviewsData && currentTest.reviewsData.length > 0 ? (
         currentTest.reviewsData.map((review, i) => (
           <Box
@@ -270,7 +281,7 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
           >
             <Box display="flex" justifyContent="space-between" mb={1}>
               <Box display="flex" alignItems="center" gap={1.5}>
-                <Avatar sx={{ 
+                <Avatar sx={{
                   width: 42,
                   height: 42,
                   bgcolor: `hsl(${i * 70}, 50%, 50%)`,
@@ -305,11 +316,7 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
       )}
       {currentTest.reviews > 0 && (
         <Box textAlign="center" mt={4}>
-          <Button
-            variant="outlined"
-            endIcon={<ArrowForwardIcon />}
-            sx={commonButtonStyle}
-          >
+          <Button variant="outlined" endIcon={<ArrowForwardIcon />} sx={commonButtonStyle}>
             See All {currentTest.reviews.toLocaleString()} Reviews
           </Button>
         </Box>
@@ -334,7 +341,9 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
           label="Date"
           value={selectedDate}
           onChange={(e) => setSelectedDate(e.target.value)}
-          InputProps={{ startAdornment: <CalendarTodayIcon color="action" sx={{ mr: 1 }} /> }}
+          InputProps={{
+            startAdornment: <CalendarTodayIcon color="action" sx={{ mr: 1 }} />
+          }}
           SelectProps={{ native: true, sx: { '& option': { padding: '10px' } } }}
           sx={{
             '& .MuiOutlinedInput-root.Mui-focused fieldset': { borderColor: primaryColor },
@@ -356,7 +365,9 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
           value={selectedTime}
           disabled={!selectedDate}
           onChange={(e) => setSelectedTime(e.target.value)}
-          InputProps={{ startAdornment: <AccessTimeIcon color="action" sx={{ mr: 1 }} /> }}
+          InputProps={{
+            startAdornment: <AccessTimeIcon color="action" sx={{ mr: 1 }} />
+          }}
           SelectProps={{ native: true, sx: { '& option': { padding: '10px' } } }}
           sx={{
             '& .MuiOutlinedInput-root.Mui-focused fieldset': { borderColor: primaryColor },
@@ -450,10 +461,7 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
               </Box>
             </Box>
             <Box>
-              <IconButton
-                onClick={toggleBookmark}
-                sx={{ color: isBookmarked ? primaryColor : 'inherit' }}
-              >
+              <IconButton onClick={toggleBookmark} sx={{ color: isBookmarked ? primaryColor : 'inherit' }}>
                 {isBookmarked ? <BookmarkIcon /> : <BookmarkBorderIcon />}
               </IconButton>
               <IconButton onClick={handleClose}>
@@ -503,25 +511,13 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
           <Divider sx={{ mb: 3 }} />
 
           <Box display="flex" gap={2} mb={3} borderBottom={1} borderColor="divider">
-            <Button
-              variant="text"
-              onClick={() => setActiveTab('details')}
-              sx={tabButtonStyle('details')}
-            >
+            <Button variant="text" onClick={() => setActiveTab('details')} sx={tabButtonStyle('details')}>
               Details
             </Button>
-            <Button
-              variant="text"
-              onClick={() => setActiveTab('reviews')}
-              sx={tabButtonStyle('reviews')}
-            >
+            <Button variant="text" onClick={() => setActiveTab('reviews')} sx={tabButtonStyle('reviews')}>
               Reviews ({currentTest.reviews.toLocaleString()})
             </Button>
-            <Button
-              variant="text"
-              onClick={() => setActiveTab('schedule')}
-              sx={tabButtonStyle('schedule')}
-            >
+            <Button variant="text" onClick={() => setActiveTab('schedule')} sx={tabButtonStyle('schedule')}>
               Schedule
             </Button>
           </Box>
@@ -541,11 +537,11 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
         <Alert
           onClose={handleCloseSnackbar}
           severity={snackbarSeverity}
+          variant="filled"
           sx={{
             width: '100%',
             backgroundColor: snackbarSeverity === 'success' ? primaryColor : undefined
           }}
-          variant="filled"
         >
           {snackbarMessage}
         </Alert>
