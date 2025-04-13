@@ -9,12 +9,11 @@ import {
   BookmarkBorder, ShoppingCart, Search,
   KeyboardArrowDown, KeyboardArrowUp
 } from '@mui/icons-material';
-import axios from 'axios';
+
+import api from '../api/axios';
 
 import TestDetailsModal from '../components/TestDetailsModal';
 
-const API_URL = 'http://localhost:8000/api';
-const api = axios.create({ baseURL: API_URL });
 
 const medicalBackground = `
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
