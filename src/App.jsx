@@ -9,6 +9,8 @@ import ProfileSidebar from './components/ProfileSidebar';
 import CatalogPage from "./pages/CatalogPage.jsx";
 import Cart from "./pages/CartPage.jsx";
 import MyTestsPage from "./pages/MyTestsPage.jsx";
+import ClinicTests from "./pages/ClinicsPage.jsx";
+import ClinicDetailPage from "./components/ClinicDetailPage.jsx";
 import "./App.css";
 
 function App() {
@@ -46,6 +48,8 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/health-tips" element={<HealthTips />} />
         <Route path="/checkai" element={<CheckAI />} />
+        <Route path="/clinics" element={<ClinicTests/>}/>
+        <Route path="/clinics/:id" element={<ClinicDetailPage />} />
         <Route path="/analysis-requst" element={<CatalogPage />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/my-tests" element={<MyTestsPage />} />
