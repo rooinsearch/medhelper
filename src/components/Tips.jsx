@@ -11,7 +11,12 @@ import {
   useTheme,
   IconButton
 } from "@mui/material";
-import { ExpandMore, LightbulbOutlined, Whatshot, Close } from "@mui/icons-material";
+import { 
+  ExpandMore, 
+  LightbulbOutlined, 
+  Update as UpdateIcon, 
+  Close 
+} from "@mui/icons-material";
 import axios from "axios";
 
 const API_URL = 'http://localhost:8000/api';
@@ -31,7 +36,7 @@ export default function HomepageHealthTips() {
   
   const [expandedTip, setExpandedTip] = useState(null);
   const [tips, setTips] = useState([]);
-  const [popularArticles, setPopularArticles] = useState([]);
+  const [latestArticles, setLatestArticles] = useState([]);
   const [loading, setLoading] = useState({ tips: true, articles: true });
   const [error, setError] = useState(null);
   const [isExpandedMobile, setIsExpandedMobile] = useState(false);
@@ -41,13 +46,16 @@ export default function HomepageHealthTips() {
     const fetchData = async () => {
       try {
         setLoading({ tips: true, articles: true });
-        const [tipsResponse, popularResponse] = await Promise.all([
+        const [tipsResponse, latestArticlesResponse] = await Promise.all([
           api.get('/health-tips/').catch(e => ({ data: [] })),
-          api.get('/articles/popular/').catch(e => ({ data: [] }))
+          // Запрос последних добавленных статей
+          api.get('/articles/?limit=3&ordering=-created_at').catch(e => ({ data: [] }))
+          // Альтернативный вариант, если на сервере есть специальный эндпоинт
+          // api.get('/articles/latest/').catch(e => ({ data: [] }))
         ]);
 
         setTips(tipsResponse.data.slice(0, isMobile ? 2 : 3));
-        setPopularArticles(popularResponse.data.slice(0, isMobile ? 1 : 2));
+        setLatestArticles(latestArticlesResponse.data.slice(0, isMobile ? 1 : 2));
       } catch (err) {
         console.error('Error:', err);
         setError('Failed to load data');
@@ -102,7 +110,7 @@ export default function HomepageHealthTips() {
     };
   };
 
-  if (error && !tips.length && !popularArticles.length) {
+  if (error && !tips.length && !latestArticles.length) {
     return (
       <Box sx={{ p: 2, textAlign: 'center' }}>
         <Typography color="error">{error}</Typography>
@@ -176,8 +184,8 @@ export default function HomepageHealthTips() {
               zIndex: 1,
               p: isMobile ? 1 : 0
             }}>
-            <Whatshot fontSize={isMobile ? "small" : "medium"} />
-            Popular Now
+            <UpdateIcon fontSize={isMobile ? "small" : "medium"} />
+            Latest Articles
           </Typography>
           
           {loading.articles ? (
@@ -193,9 +201,9 @@ export default function HomepageHealthTips() {
               </Card>
             ))
           ) : (
-            popularArticles.map((article) => (
+            latestArticles.map((article) => (
               <Card 
-                key={`popular-${article.id}`}
+                key={`latest-${article.id}`}
                 sx={{
                   mb: 2,
                   p: 1,

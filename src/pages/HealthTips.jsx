@@ -1,29 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, Button, Card, Container, CardContent, CardActions, 
   Dialog, DialogContent, DialogTitle, Grid, IconButton, 
   Menu, MenuItem, Pagination, Typography, CircularProgress,
-  Snackbar, Alert, Skeleton
+  Snackbar, Alert, Skeleton, Chip
 } from '@mui/material';
 import { 
-  BookmarkBorder as BookmarkBorderIcon, 
-  Bookmark as BookmarkIcon,
   ArrowForward as ArrowForwardIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  Check as CheckIcon
 } from '@mui/icons-material';
-import axios from 'axios';
-
 
 const API_URL = 'http://localhost:8000/api';
-const api = axios.create({ baseURL: API_URL });
-
-const dataCache = {
-  categories: null,
-  articles: {},
-  savedArticles: null
-};
-
+const ARTICLES_PER_PAGE = 10;
 
 const ArticleCardSkeleton = () => (
   <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -38,8 +28,7 @@ const ArticleCardSkeleton = () => (
   </Card>
 );
 
-
-const ArticleCard = React.memo(({ article, savedArticles, handleBookmarkClick, handleArticleOpen }) => (
+const ArticleCard = ({ article, handleArticleOpen }) => (
   <Card sx={{ 
     height: '100%', 
     display: 'flex', 
@@ -65,21 +54,6 @@ const ArticleCard = React.memo(({ article, savedArticles, handleBookmarkClick, h
         }}
         loading="lazy"
       />
-      <IconButton
-        sx={{
-          position: 'absolute',
-          top: 8,
-          right: 8,
-          backgroundColor: 'rgba(255,255,255,0.8)',
-          '&:hover': { backgroundColor: 'rgba(255,255,255,0.9)' }
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          handleBookmarkClick(article.id);
-        }}
-      >
-        {savedArticles.includes(article.id) ? <BookmarkIcon color="primary" /> : <BookmarkBorderIcon />}
-      </IconButton>
     </Box>
     <CardContent sx={{ flexGrow: 1 }}>
       <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
@@ -103,23 +77,21 @@ const ArticleCard = React.memo(({ article, savedArticles, handleBookmarkClick, h
         onClick={() => handleArticleOpen(article)}
         sx={{ textTransform: 'none', color: '#0c5b3a', fontWeight: 'bold' }}
       >
-        Full Article
+        Read More
       </Button>
     </CardActions>
   </Card>
-));
+);
 
 const HealthTips = () => {
-  // State management
   const [categories, setCategories] = useState([]);
   const [articles, setArticles] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [savedArticles, setSavedArticles] = useState([]);
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const [openArticle, setOpenArticle] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [anchorEl, setAnchorEl] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -127,173 +99,126 @@ const HealthTips = () => {
     severity: 'info'
   });
 
-  // Show snackbar notification
   const showNotification = (message, severity = 'info') => {
     setSnackbar({ open: true, message, severity });
   };
 
-  // Close snackbar
   const handleCloseSnackbar = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
 
-  // Fetch categories with caching
-  const fetchCategories = useCallback(async () => {
-    if (dataCache.categories) {
-      setCategories(dataCache.categories);
-      return;
-    }
-
+  const fetchCategories = async () => {
     try {
-      setLoading(true);
-      const response = await api.get('/categories/');
-      const data = response.data.results || response.data;
-      dataCache.categories = data;
-      setCategories(data);
+      const response = await fetch(`${API_URL}/categories/`);
+      const data = await response.json();
+      setCategories(data.results || data);
     } catch (err) {
-      console.error('Error fetching categories:', err);
-      setError('Failed to load categories');
+      console.error('Error loading categories:', err);
       showNotification('Failed to load categories', 'error');
-    } finally {
-      setLoading(false);
     }
-  }, []);
+  };
 
-  // Fetch articles with caching
-  const fetchArticles = useCallback(async () => {
-    const cacheKey = `${selectedCategory || 'all'}-${currentPage}`;
-    
-    if (dataCache.articles[cacheKey]) {
-      setArticles(dataCache.articles[cacheKey].items);
-      setTotalPages(dataCache.articles[cacheKey].totalPages);
-      return;
-    }
-
+  const fetchArticles = async () => {
     setLoading(true);
+    setError(null);
     try {
-      let url = `/articles/?page=${currentPage}`;
-      if (selectedCategory) {
-        url += `&category=${selectedCategory}`;
+      let articles = [];
+      let totalCount = 0;
+
+      if (selectedCategories.length === 0) {
+        const response = await fetch(`${API_URL}/articles/?page=${currentPage}`);
+        const data = await response.json();
+        articles = data.results || data;
+        totalCount = data.count || data.length || 0;
+      } else {
+        const responses = await Promise.all(
+          selectedCategories.map(cat => 
+            fetch(`${API_URL}/articles/?page=${currentPage}&category=${cat}`)
+              .then(res => res.json())
+              .catch(err => {
+                console.error(`Error loading category ${cat}:`, err);
+                return { results: [], count: 0 };
+              })
+          )
+        );
+        
+        articles = responses.flatMap(res => res.results || res);
+        totalCount = responses.reduce((sum, res) => sum + (res.count || res.length || 0), 0);
       }
-      
-      const response = await api.get(url);
-      const items = response.data.results || response.data;
-      const totalPages = Math.ceil(response.data.count / 10) || 1;
-      
-      dataCache.articles[cacheKey] = { items, totalPages };
-      setArticles(items);
-      setTotalPages(totalPages);
+
+      setArticles(articles);
+      setTotalPages(Math.ceil(totalCount / ARTICLES_PER_PAGE) || 1);
     } catch (err) {
-      console.error('Error fetching articles:', err);
+      console.error('Error loading articles:', err);
       setError('Failed to load articles');
       showNotification('Failed to load articles', 'error');
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, currentPage]);
+  };
 
-  // Fetch saved articles with caching
-  const fetchSavedArticles = useCallback(async () => {
-    if (dataCache.savedArticles) {
-      setSavedArticles(dataCache.savedArticles);
-      return;
-    }
-
-    try {
-      const response = await api.get('/saved-articles/');
-      const saved = response.data.results.map(item => item.article) || [];
-      dataCache.savedArticles = saved;
-      setSavedArticles(saved);
-    } catch (err) {
-      console.error('Error fetching saved articles:', err);
-      showNotification('Please sign in to save articles', 'info');
-    }
-  }, []);
-
-  // Initial data loading
   useEffect(() => {
     fetchCategories();
-    fetchSavedArticles();
-  }, [fetchCategories, fetchSavedArticles]);
+  }, []);
 
-  // Fetch articles when category or page changes
   useEffect(() => {
     fetchArticles();
-  }, [fetchArticles]);
+  }, [selectedCategories, currentPage]);
 
-  // Event handlers
   const handleCategoryMenuOpen = (event) => setAnchorEl(event.currentTarget);
   const handleCategoryMenuClose = () => setAnchorEl(null);
   
   const handleCategorySelect = (categorySlug) => {
-    setSelectedCategory(categorySlug);
+    setSelectedCategories(prev => 
+      prev.includes(categorySlug) 
+        ? prev.filter(slug => slug !== categorySlug) 
+        : [...prev, categorySlug]
+    );
+    setCurrentPage(1);
+  };
+  
+  const handleClearCategories = () => {
+    setSelectedCategories([]);
     setCurrentPage(1);
     handleCategoryMenuClose();
   };
-  
-  // Toggle bookmark status
-  const handleBookmarkClick = async (articleId) => {
-    try {
-      await api.post('/saved-articles/toggle/', { article_id: articleId });
-      const newSavedArticles = savedArticles.includes(articleId) 
-        ? savedArticles.filter(id => id !== articleId) 
-        : [...savedArticles, articleId];
-      
-      setSavedArticles(newSavedArticles);
-      dataCache.savedArticles = newSavedArticles;
-      
-      showNotification(
-        savedArticles.includes(articleId) 
-          ? 'Article removed from saved' 
-          : 'Article saved for later',
-        'success'
-      );
-    } catch (err) {
-      console.error('Error toggling bookmark:', err);
-      showNotification('Failed to save article. Please try again.', 'error');
-    }
-  };
 
-  // Open/close article modal
   const handleArticleOpen = async (article) => {
     try {
-      // Show basic article data immediately
       setOpenArticle(article);
-      
-      // Fetch full article details in background
-      const response = await api.get(`/articles/${article.slug}/`);
-      setOpenArticle(response.data);
+      const response = await fetch(`${API_URL}/articles/${article.slug}/`);
+      const fullArticle = await response.json();
+      setOpenArticle(fullArticle);
     } catch (err) {
-      console.error('Error fetching article details:', err);
+      console.error('Error loading article details:', err);
       showNotification('Failed to load full article content', 'error');
     }
   };
   
   const handleArticleClose = () => setOpenArticle(null);
 
-  // Pagination handler
   const handlePageChange = (event, value) => {
     setCurrentPage(value);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Get current category name for display
-  const getCategoryName = () => {
-    if (!selectedCategory) return null;
-    const category = categories.find(cat => cat.slug === selectedCategory);
-    return category ? category.name : null;
+  const getCategoryNames = () => {
+    if (selectedCategories.length === 0) return 'All Categories';
+    return selectedCategories.map(slug => 
+      categories.find(cat => cat.slug === slug)?.name
+    ).filter(Boolean).join(', ');
   };
 
   return (
     <Container maxWidth="lg" sx={{ py: 3, px: { xs: 2, sm: 3 } }}>
-      {/* Page Header */}
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Header */}
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Box>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', fontSize: 32 }}>
-            Health Tips.
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
+            Health Tips
           </Typography>
-          <Typography variant="subtitle1" color="text.secondary" sx={{ fontSize: 14 }}>
-            Your guide to a healthier life, one tip at a time.
+          <Typography variant="subtitle1" color="text.secondary">
+            Your guide to a healthier lifestyle
           </Typography>
         </Box>
         
@@ -305,23 +230,22 @@ const HealthTips = () => {
             borderRadius: 8, 
             backgroundColor: '#f5f5f5',
             color: '#000',
-            border: 'none',
             textTransform: 'none',
-            px: 2
+            px: 2,
+            whiteSpace: 'nowrap'
           }}
         >
-          {selectedCategory ? getCategoryName() : 'All Categories'}
+          {getCategoryNames()}
         </Button>
 
-        {/* Category Menu */}
         <Menu
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
           onClose={handleCategoryMenuClose}
           sx={{ '& .MuiMenu-paper': { borderRadius: 2, maxHeight: 300, width: 250 } }}
         >
-          <MenuItem onClick={() => handleCategorySelect(null)}>
-            <Typography sx={{ fontWeight: selectedCategory === null ? 'bold' : 'normal' }}>
+          <MenuItem onClick={handleClearCategories}>
+            <Typography sx={{ fontWeight: selectedCategories.length === 0 ? 'bold' : 'normal' }}>
               All Categories
             </Typography>
           </MenuItem>
@@ -330,69 +254,70 @@ const HealthTips = () => {
               key={category.id} 
               onClick={() => handleCategorySelect(category.slug)}
               sx={{ 
-                backgroundColor: selectedCategory === category.slug ? '#f0f7ff' : 'transparent',
+                backgroundColor: selectedCategories.includes(category.slug) ? '#f0f7ff' : 'transparent',
                 '&:hover': { backgroundColor: '#f5f5f5' }
               }}
             >
-              <Typography sx={{ fontWeight: selectedCategory === category.slug ? 'bold' : 'normal' }}>
-                {category.name}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                {selectedCategories.includes(category.slug) && (
+                  <CheckIcon color="primary" sx={{ mr: 1 }} />
+                )}
+                <Typography sx={{ 
+                  fontWeight: selectedCategories.includes(category.slug) ? 'bold' : 'normal',
+                  flexGrow: 1
+                }}>
+                  {category.name}
+                </Typography>
+              </Box>
             </MenuItem>
           ))}
         </Menu>
       </Box>
 
-      {/* Category Title (if selected) */}
-      {getCategoryName() && (
-        <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold' }}>
-          {getCategoryName()}
-        </Typography>
-      )}
-
-      {/* Error state */}
-      {error && !loading && (
-        <Box sx={{ py: 3, textAlign: 'center' }}>
-          <Typography color="error">{error}</Typography>
-          <Button 
-            variant="outlined" 
-            onClick={() => {
-              setError(null);
-              fetchCategories();
-              fetchArticles();
-            }}
-            sx={{ mt: 2 }}
-          >
-            Retry
-          </Button>
+      {/* Selected Categories */}
+      {selectedCategories.length > 0 && (
+        <Box sx={{ mb: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          {selectedCategories.map(slug => {
+            const category = categories.find(cat => cat.slug === slug);
+            return category && (
+              <Chip
+                key={slug}
+                label={category.name}
+                onDelete={() => handleCategorySelect(slug)}
+                sx={{ backgroundColor: '#f0f7ff' }}
+              />
+            );
+          })}
         </Box>
       )}
 
       {/* Articles Grid */}
-      <Grid container spacing={2}>
+      <Grid container spacing={3}>
         {loading ? (
-          // Show skeleton loaders while loading
-          Array.from({ length: 6 }).map((_, index) => (
+          Array.from({ length: ARTICLES_PER_PAGE }).map((_, index) => (
             <Grid item xs={12} sm={6} md={4} key={`skeleton-${index}`}>
               <ArticleCardSkeleton />
             </Grid>
           ))
+        ) : error ? (
+          <Grid item xs={12}>
+            <Typography color="error" sx={{ textAlign: 'center', py: 4 }}>
+              {error}
+            </Typography>
+          </Grid>
         ) : articles.length > 0 ? (
           articles.map((article) => (
             <Grid item xs={12} sm={6} md={4} key={article.id}>
               <ArticleCard 
                 article={article} 
-                savedArticles={savedArticles} 
-                handleBookmarkClick={handleBookmarkClick}
                 handleArticleOpen={handleArticleOpen}
               />
             </Grid>
           ))
         ) : (
-          !error && (
-            <Box sx={{ py: 3, width: '100%', textAlign: 'center' }}>
-              <Typography>No articles found in this category.</Typography>
-            </Box>
-          )
+          <Box sx={{ py: 3, width: '100%', textAlign: 'center' }}>
+            <Typography>No articles found matching your criteria</Typography>
+          </Box>
         )}
       </Grid>
 
@@ -409,7 +334,7 @@ const HealthTips = () => {
         </Box>
       )}
 
-      {/* Full Article Modal */}
+      {/* Article Dialog */}
       <Dialog
         open={openArticle !== null}
         onClose={handleArticleClose}
@@ -429,7 +354,7 @@ const HealthTips = () => {
               <Typography variant="h6" component="div">
                 {openArticle.title}
               </Typography>
-              <IconButton onClick={handleArticleClose} size="small">
+              <IconButton onClick={handleArticleClose}>
                 <CloseIcon />
               </IconButton>
             </DialogTitle>
@@ -445,15 +370,11 @@ const HealthTips = () => {
                     borderRadius: 8,
                     marginBottom: 16
                   }}
-                  loading="lazy"
                 />
                 <Box dangerouslySetInnerHTML={{ __html: openArticle.content }} sx={{ 
                   '& h2': { fontSize: 24, fontWeight: 'bold', mb: 2 },
                   '& h3': { fontSize: 20, fontWeight: 'bold', mt: 3, mb: 1.5 },
-                  '& h4': { fontSize: 18, fontWeight: 'bold', mt: 2, mb: 1 },
-                  '& p': { mb: 2, lineHeight: 1.6 },
-                  '& ul, & ol': { mb: 2, pl: 3 },
-                  '& li': { mb: 1 }
+                  '& p': { mb: 2, lineHeight: 1.6 }
                 }} />
               </Box>
             </DialogContent>
@@ -461,7 +382,7 @@ const HealthTips = () => {
         )}
       </Dialog>
 
-      {/* Notification Snackbar */}
+      {/* Notifications */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}

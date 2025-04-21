@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Header from "./components/Header.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import HealthTips from "./pages/HealthTips.jsx";
 import CheckAI from "./pages/CheckAI.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import ProfileSidebar from './components/ProfileSidebar';
+import Footer from "./components/Footer.jsx";
 import CatalogPage from "./pages/CatalogPage.jsx";
 import Cart from "./pages/CartPage.jsx";
 import MyTestsPage from "./pages/MyTestsPage.jsx";
@@ -13,13 +14,25 @@ import ClinicTests from "./pages/ClinicsPage.jsx";
 import ClinicDetailPage from "./components/ClinicDetailPage.jsx";
 import "./App.css";
 
+// Создаем компонент-обертку для управления отображением футера
+const Layout = ({ children }) => {
+  const location = useLocation();
+  const showFooter = location.pathname !== "/checkai";
+
+  return (
+    <>
+      {children}
+      {showFooter && <Footer />}
+    </>
+  );
+};
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(
     localStorage.getItem("isAuthenticated") === "true"
   );
 
   useEffect(() => {
-    // Проверяем как token, так и isAuthenticated для надежности
     const token = localStorage.getItem("token");
     const authStatus = localStorage.getItem("isAuthenticated") === "true";
     setIsAuthenticated(!!token && authStatus);
@@ -44,36 +57,39 @@ function App() {
         onLogin={handleLogin} 
         onLogout={handleLogout} 
       />
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/health-tips" element={<HealthTips />} />
-        <Route path="/checkai" element={<CheckAI />} />
-        <Route path="/clinics" element={<ClinicTests/>}/>
-        <Route path="/clinics/:id" element={<ClinicDetailPage />} />
-        <Route path="/analysis-requst" element={<CatalogPage />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/my-tests" element={<MyTestsPage />} />
-        <Route 
-          path="/profile" 
-          element={
-            isAuthenticated ? (
-              <ProfilePage />
-            ) : (
-              <Navigate to="/" state={{ from: "profile" }} replace />
-            )
-          } 
-        />
-        <Route path="*" element={<Navigate to="/" />} />
-        <Route 
-           path="/catalog-of-tests"
-          element=
-            {isAuthenticated ? (
+      <Layout>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/health-tips" element={<HealthTips />} />
+          <Route path="/checkai" element={<CheckAI />} />
+          <Route path="/clinics" element={<ClinicTests/>}/>
+          <Route path="/clinics/:id" element={<ClinicDetailPage />} />
+          <Route path="/analysis-requst" element={<CatalogPage />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/my-tests" element={<MyTestsPage />} />
+          <Route 
+            path="/profile" 
+            element={
+              isAuthenticated ? (
+                <ProfilePage />
+              ) : (
+                <Navigate to="/" state={{ from: "profile" }} replace />
+              )
+            } 
+          />
+          <Route path="*" element={<Navigate to="/" />} />
+          <Route 
+            path="/catalog-of-tests"
+            element={
+              isAuthenticated ? (
                 <CatalogPage />
-        ) : (
-          <Navigate to="/" replace />
-         )} 
-       />
-      </Routes>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            } 
+          />
+        </Routes>
+      </Layout>
     </Router>
   );
 }
