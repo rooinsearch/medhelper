@@ -10,23 +10,140 @@ import {
   Divider,
   CircularProgress,
   Alert,
+  Paper,
 } from "@mui/material";
 import { GoogleLogin } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
 
+const VerificationCodeComponent = ({ 
+  email, 
+  onVerify, 
+  onResend, 
+  onBack,
+  isLoading,
+  verificationError,
+  verificationSuccess
+}) => {
+  const [verificationCode, setVerificationCode] = useState('');
+  const [resendTimeout, setResendTimeout] = useState(60);
+
+  useEffect(() => {
+    if (resendTimeout > 0) {
+      const timer = setTimeout(() => setResendTimeout(t => t - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendTimeout]);
+
+  const handleChange = (e) => {
+    const value = e.target.value.replace(/[^0-9]/g, '');
+    setVerificationCode(value);
+  };
+
+  const handleResendCode = async () => {
+    if (resendTimeout > 0) return;
+    await onResend();
+    setResendTimeout(60);
+  };
+
+  return (
+    <Paper elevation={3} sx={{
+      width: '320px',
+      p: 2.5,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+    }}>
+      <Typography variant="h6" align="center" sx={{ mb: 1, color: '#001A00', fontWeight: 600 }}>
+        Verify Your Email
+      </Typography>
+      
+      <Typography variant="body2" align="center" sx={{ mb: 2, color: 'text.secondary' }}>
+        We've sent a 6-digit code to {email}
+      </Typography>
+      
+      {verificationSuccess ? (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          Email verified successfully! Logging you in...
+        </Alert>
+      ) : (
+        <>
+          <TextField
+            fullWidth
+            placeholder="Verification Code"
+            variant="outlined"
+            size="small"
+            value={verificationCode}
+            onChange={handleChange}
+            error={!!verificationError}
+            helperText={verificationError}
+            inputProps={{ maxLength: 6 }}
+            sx={{ mb: 2 }}
+            autoFocus
+          />
+          
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={() => onVerify(verificationCode)}
+            disabled={isLoading}
+            sx={{
+              mb: 1,
+              bgcolor: '#001A00',
+              '&:hover': { bgcolor: '#FFA500' },
+            }}
+          >
+            {isLoading ? 'Verifying...' : 'Verify Email'}
+          </Button>
+          
+          <Button
+            fullWidth
+            variant="text"
+            onClick={handleResendCode}
+            disabled={isLoading || resendTimeout > 0}
+            sx={{ 
+              mb: 0.5,
+              color: '#001A00',
+              '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
+            }}
+          >
+            {resendTimeout > 0 ? `Resend in ${resendTimeout}s` : 'Resend Code'}
+          </Button>
+          
+          <Button
+            fullWidth
+            variant="text"
+            onClick={onBack}
+            disabled={isLoading}
+            sx={{ 
+              color: '#001A00',
+              '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
+            }}
+          >
+            Back to Registration
+          </Button>
+        </>
+      )}
+    </Paper>
+  );
+};
+
 const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
+  // Refs
   const emailInputRef = useRef(null);
   const passwordInputRef = useRef(null);
   const resetEmailInputRef = useRef(null);
   const newPasswordInputRef = useRef(null);
 
+  // State variables
   const [isRegistering, setIsRegistering] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [showResetForm, setShowResetForm] = useState(!!resetToken);
+  const [showVerification, setShowVerification] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Form data
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -34,20 +151,28 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     confirmPassword: "",
   });
 
+  // Password reset states
   const [resetEmail, setResetEmail] = useState("");
   const [resetMessage, setResetMessage] = useState("");
   const [resetMessageType, setResetMessageType] = useState("error");
 
+  // New password states
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [resetFormMessage, setResetFormMessage] = useState("");
   const [resetFormMessageType, setResetFormMessageType] = useState("error");
   const [resetSuccess, setResetSuccess] = useState(false);
 
+  // Verification states
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationError, setVerificationError] = useState("");
+  const [verificationSuccess, setVerificationSuccess] = useState(false);
+
+  // Effects
   useEffect(() => {
     const savedEmail = localStorage.getItem("userEmail");
     if (savedEmail) {
-      setFormData((prevData) => ({ ...prevData, email: savedEmail }));
+      setFormData(prev => ({ ...prev, email: savedEmail }));
       setRememberMe(true);
     }
   }, []);
@@ -70,9 +195,10 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     if (resetToken) setShowResetForm(true);
   }, [resetToken]);
 
+  // Helper functions
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prevData) => ({ ...prevData, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
     if (error) setError("");
   };
 
@@ -89,31 +215,52 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     return true;
   };
 
+  const handleKeyPress = (e, action) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      action();
+    }
+  };
+
+  // API call handlers
+  const makeApiCall = async (url, method, body, errorMessage) => {
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error(errorMessage);
+      return await response.json();
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Authentication handlers
   const handleAuth = async (url, body, isRegister = false) => {
     if (!validateForm()) return;
     setIsLoading(true);
     setError("");
 
-    // Real authentication (production)
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!response.ok)
-        throw new Error(
-          isRegister ? "Registration failed" : "Authentication failed"
-        );
-      const data = await response.json();
-      if (rememberMe) localStorage.setItem("userEmail", formData.email);
-      else localStorage.removeItem("userEmail");
-      localStorage.setItem("isAuthenticated", "true");
-      // Save the token using key "accessToken" from backend's "access_token" field
-      localStorage.setItem("accessToken", data.access_token);
-      onLogin(data.access_token);
-      console.log("User authenticated:", data);
-      onClose();
+      const data = await makeApiCall(
+        url,
+        "POST",
+        body,
+        isRegister ? "Registration failed" : "Authentication failed"
+      );
+      
+      if (isRegister) {
+        setShowVerification(true);
+      } else {
+        if (rememberMe) localStorage.setItem("userEmail", formData.email);
+        else localStorage.removeItem("userEmail");
+        localStorage.setItem("isAuthenticated", "true");
+        localStorage.setItem("accessToken", data.access_token);
+        onLogin(data.access_token);
+        onClose();
+      }
     } catch (err) {
       setError(
         isRegister
@@ -133,25 +280,84 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     });
 
   const handleSignUp = () =>
-    handleAuth("http://localhost:8000/api/auth/register/", {
-      email: formData.email,
-      password: formData.password,
-      fullName: formData.fullName,
-    }, true);
+    handleAuth(
+      "http://localhost:8000/api/auth/register/", 
+      {
+        email: formData.email,
+        password: formData.password,
+        fullName: formData.fullName,
+      }, 
+      true
+    );
 
+  // Verification handlers
+  const handleVerifyCode = async (code) => {
+    setIsLoading(true);
+    setVerificationError("");
+
+    try {
+      await makeApiCall(
+        "http://localhost:8000/api/auth/verify/",
+        "POST",
+        { email: formData.email, code },
+        "Verification failed"
+      );
+      
+      setVerificationSuccess(true);
+      setTimeout(() => {
+        handleAuth("http://localhost:8000/api/auth/login/", {
+          email: formData.email,
+          password: formData.password,
+        });
+      }, 1500);
+    } catch (error) {
+      setVerificationError("Invalid verification code. Please try again.");
+      console.error("Verification error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setIsLoading(true);
+    setVerificationError("");
+
+    try {
+      await makeApiCall(
+        "http://localhost:8000/api/auth/resend-code/",
+        "POST",
+        { email: formData.email },
+        "Failed to resend code"
+      );
+      
+      setVerificationError("");
+      alert("New verification code sent to your email!");
+    } catch (error) {
+      setVerificationError("Failed to resend code. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Password reset handlers
   const handleResetPassword = async () => {
-    if (!resetEmail)
-      return setResetMessage("Please enter your email.") &&
-        setResetMessageType("error");
+    if (!resetEmail) {
+      setResetMessage("Please enter your email.");
+      setResetMessageType("error");
+      return;
+    }
+    
     setIsLoading(true);
     setResetMessage("");
+
     try {
-      const response = await fetch("http://localhost:8000/password_reset_request/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail }),
-      });
-      if (!response.ok) throw new Error("Failed to send reset link");
+      await makeApiCall(
+        "http://localhost:8000/password_reset_request/",
+        "POST",
+        { email: resetEmail },
+        "Failed to send reset link"
+      );
+      
       setResetMessage("Reset instructions sent! Please check your email.");
       setResetMessageType("success");
     } catch (error) {
@@ -164,32 +370,43 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
   };
 
   const handleSubmitNewPassword = async () => {
-    if (!newPassword)
-      return setResetFormMessage("Password is required") &&
-        setResetFormMessageType("error");
-    if (newPassword.length < 8)
-      return setResetFormMessage("Password must be at least 8 characters") &&
-        setResetFormMessageType("error");
-    if (newPassword !== confirmNewPassword)
-      return setResetFormMessage("Passwords do not match") &&
-        setResetFormMessageType("error");
+    if (!newPassword) {
+      setResetFormMessage("Password is required");
+      setResetFormMessageType("error");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setResetFormMessage("Password must be at least 8 characters");
+      setResetFormMessageType("error");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setResetFormMessage("Passwords do not match");
+      setResetFormMessageType("error");
+      return;
+    }
+
     setIsLoading(true);
     setResetFormMessage("");
+
     try {
-      const response = await fetch("http://localhost:8000/password_reset_confirm/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: resetToken, newPassword }),
-      });
-      if (!response.ok) throw new Error("Failed to reset password");
+      await makeApiCall(
+        "http://localhost:8000/password_reset_confirm/",
+        "POST",
+        { token: resetToken, newPassword },
+        "Failed to reset password"
+      );
+      
       setResetSuccess(true);
       setResetFormMessage("Your password has been reset successfully!");
       setResetFormMessageType("success");
+      
       setTimeout(() => {
         setShowResetForm(false);
         setShowResetPassword(false);
-        if (resetToken)
+        if (resetToken) {
           window.history.replaceState({}, document.title, window.location.pathname);
+        }
       }, 3000);
     } catch (error) {
       setResetFormMessage("Failed to reset password. The link may be expired.");
@@ -200,21 +417,23 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     }
   };
 
+  // Google auth handlers
   const handleGoogleSuccess = async (response) => {
     setIsLoading(true);
     setError("");
+    
     try {
       const token = response.credential;
       const decoded = jwtDecode(token);
       console.log("Google user:", decoded);
-      const backendResponse = await fetch("http://localhost:8000/api/auth/google/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-      if (!backendResponse.ok)
-        throw new Error("Google authentication failed");
-      const data = await backendResponse.json();
+      
+      const data = await makeApiCall(
+        "http://localhost:8000/api/auth/google/",
+        "POST",
+        { token },
+        "Google authentication failed"
+      );
+      
       localStorage.setItem("isAuthenticated", "true");
       localStorage.setItem("accessToken", data.access_token);
       onLogin(data.access_token);
@@ -227,16 +446,11 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     }
   };
 
-  const handleGoogleFailure = () =>
+  const handleGoogleFailure = () => {
     setError("Google sign-in failed. Please try another method.");
-
-  const handleKeyPress = (e, action) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      action();
-    }
   };
 
+  // Component renderers
   const renderResetPasswordForm = () => (
     <>
       <Typography variant="h6" sx={{ textAlign: "center", mb: 2 }}>
@@ -280,7 +494,7 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
           <Button
             fullWidth
             variant="contained"
-            sx={{ bgcolor: "#40916C", color: "white", "&:hover": { bgcolor: "#2D6A4F" } }}
+            sx={{ bgcolor: "#001A00", color: "white", "&:hover": { bgcolor: "#FFA500" } }}
             onClick={handleSubmitNewPassword}
             disabled={isLoading}
             startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : null}
@@ -311,7 +525,7 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
       <Button
         fullWidth
         variant="contained"
-        sx={{ mt: 2, bgcolor: "#40916C", color: "white", "&:hover": { bgcolor: "#2D6A4F" } }}
+        sx={{ mt: 2, bgcolor: "#001A00", color: "white", "&:hover": { bgcolor: "#FFA500" } }}
         onClick={handleResetPassword}
         disabled={isLoading}
         startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : null}
@@ -325,7 +539,7 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
       )}
       <Button
         variant="text"
-        sx={{ mt: 2, color: "#40916C", "&:hover": { bgcolor: "rgba(64, 145, 108, 0.08)" } }}
+        sx={{ mt: 2, color: "#001A00", "&:hover": { bgcolor: "rgba(64, 145, 108, 0.08)" } }}
         onClick={() => setShowResetPassword(false)}
         disabled={isLoading}
       >
@@ -336,8 +550,8 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
 
   const renderMainForm = () => (
     <>
-      <Typography variant="h6" sx={{ textAlign: "center", mb: 2 }}>
-        {isRegistering ? "Create an Account" : "Welcome Back!"}
+      <Typography variant="h6" sx={{ textAlign: "center", mb: 2, color: "#001A00" }}>
+        {isRegistering ? "Create an Account" : "Welcome!"}
       </Typography>
       {error && (
         <Alert severity="error" sx={{ mb: 2, width: "100%" }}>
@@ -398,10 +612,10 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
           variant="contained"
           sx={{
             borderRadius: "20px",
-            bgcolor: "#40916C",
+            bgcolor: "#001A00",
             color: "white",
             py: 1,
-            "&:hover": { bgcolor: "#2D6A4F" },
+            "&:hover": { bgcolor: "#FFA500" },
           }}
           onClick={isRegistering ? handleSignUp : handleSignIn}
           disabled={isLoading}
@@ -426,7 +640,7 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
               bgcolor: "white",
               px: 1,
               fontSize: "0.85rem",
-              color: "#40916C",
+              color: "#001A00",
             }}
           >
             OR
@@ -442,17 +656,17 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
                 <Checkbox
                   checked={rememberMe}
                   onChange={() => setRememberMe(!rememberMe)}
-                  sx={{ color: "#40916C", "&.Mui-checked": { color: "#40916C" } }}
+                  sx={{ color: "#001A00", "&.Mui-checked": { color: "#001A00" } }}
                   disabled={isLoading}
                 />
               }
-              label={<Typography sx={{ color: "#40916C", fontSize: "0.85rem" }}>Remember me</Typography>}
+              label={<Typography sx={{ color: "#001A00", fontSize: "0.85rem" }}>Remember me</Typography>}
             />
             <Button
               variant="text"
               sx={{
                 cursor: "pointer",
-                color: "#40916C",
+                color: "#001A00",
                 fontSize: "0.85rem",
                 textTransform: "none",
                 "&:hover": { bgcolor: "rgba(64, 145, 108, 0.08)", textDecoration: "underline" },
@@ -470,7 +684,7 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
             textAlign: "center",
             mt: 1,
             cursor: "pointer",
-            color: "#40916C",
+            color: "#001A00",
             fontSize: "0.9rem",
             textTransform: "none",
             "&:hover": { bgcolor: "rgba(64, 145, 108, 0.08)", textDecoration: "underline" },
@@ -512,10 +726,29 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <Typography variant="h4" fontWeight="bold" sx={{ mb: 2 }}>
+        <Typography variant="h4" fontWeight="bold" sx={{ mb: 2, color: "#001A00" }}>
           MedHelper
         </Typography>
-        {showResetForm ? renderResetPasswordForm() : showResetPassword ? renderRequestResetForm() : renderMainForm()}
+        {showVerification ? (
+          <VerificationCodeComponent
+            email={formData.email}
+            onVerify={handleVerifyCode}
+            onResend={handleResendCode}
+            onBack={() => {
+              setShowVerification(false);
+              setError("");
+            }}
+            isLoading={isLoading}
+            verificationError={verificationError}
+            verificationSuccess={verificationSuccess}
+          />
+        ) : showResetForm ? (
+          renderResetPasswordForm()
+        ) : showResetPassword ? (
+          renderRequestResetForm()
+        ) : (
+          renderMainForm()
+        )}
       </Box>
     </Modal>
   );

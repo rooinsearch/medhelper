@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Box, Button, Card, Container, CardContent, CardActions, 
-  Dialog, DialogContent, DialogTitle, Grid, IconButton, 
+import {
+  Box, Button, Card, Container, CardContent, CardActions,
+  Dialog, DialogContent, DialogTitle, Grid, IconButton,
   Menu, MenuItem, Pagination, Typography, CircularProgress,
   Snackbar, Alert, Skeleton, Chip
 } from '@mui/material';
-import { 
+import {
   ArrowForward as ArrowForwardIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
   Close as CloseIcon,
   Check as CheckIcon
 } from '@mui/icons-material';
+import api from '../api/axios';
 
-const API_URL = 'http://localhost:8000/api';
 const ARTICLES_PER_PAGE = 10;
 
 const ArticleCardSkeleton = () => (
@@ -29,9 +29,9 @@ const ArticleCardSkeleton = () => (
 );
 
 const ArticleCard = ({ article, handleArticleOpen }) => (
-  <Card sx={{ 
-    height: '100%', 
-    display: 'flex', 
+  <Card sx={{
+    height: '100%',
+    display: 'flex',
     flexDirection: 'column',
     borderRadius: 2,
     boxShadow: '0px 2px 8px rgba(0,0,0,0.1)',
@@ -59,7 +59,7 @@ const ArticleCard = ({ article, handleArticleOpen }) => (
       <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
         {article.category_name}
       </Typography>
-      <Typography variant="h6" component="h3" sx={{ 
+      <Typography variant="h6" component="h3" sx={{
         fontWeight: 'bold',
         mb: 1,
         display: '-webkit-box',
@@ -109,8 +109,7 @@ const HealthTips = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${API_URL}/categories/`);
-      const data = await response.json();
+      const { data } = await api.get('/healthtips/categories/');
       setCategories(data.results || data);
     } catch (err) {
       console.error('Error loading categories:', err);
@@ -122,31 +121,36 @@ const HealthTips = () => {
     setLoading(true);
     setError(null);
     try {
-      let articles = [];
+      let articlesList = [];
       let totalCount = 0;
 
       if (selectedCategories.length === 0) {
-        const response = await fetch(`${API_URL}/articles/?page=${currentPage}`);
-        const data = await response.json();
-        articles = data.results || data;
+        const { data } = await api.get('/healthtips/articles/', {
+          params: { page: currentPage }
+        });
+        articlesList = data.results || data;
         totalCount = data.count || data.length || 0;
       } else {
         const responses = await Promise.all(
-          selectedCategories.map(cat => 
-            fetch(`${API_URL}/articles/?page=${currentPage}&category=${cat}`)
-              .then(res => res.json())
-              .catch(err => {
-                console.error(`Error loading category ${cat}:`, err);
-                return { results: [], count: 0 };
-              })
+          selectedCategories.map(slug =>
+            api.get('/healthtips/articles/', {
+              params: { page: currentPage, category: slug }
+            })
+            .then(res => res.data)
+            .catch(err => {
+              console.error(`Error loading category ${slug}:`, err);
+              return { results: [], count: 0 };
+            })
           )
         );
-        
-        articles = responses.flatMap(res => res.results || res);
-        totalCount = responses.reduce((sum, res) => sum + (res.count || res.length || 0), 0);
+        articlesList = responses.flatMap(res => res.results || res);
+        totalCount = responses.reduce(
+          (sum, res) => sum + (res.count || res.length || 0),
+          0
+        );
       }
 
-      setArticles(articles);
+      setArticles(articlesList);
       setTotalPages(Math.ceil(totalCount / ARTICLES_PER_PAGE) || 1);
     } catch (err) {
       console.error('Error loading articles:', err);
@@ -167,16 +171,16 @@ const HealthTips = () => {
 
   const handleCategoryMenuOpen = (event) => setAnchorEl(event.currentTarget);
   const handleCategoryMenuClose = () => setAnchorEl(null);
-  
+
   const handleCategorySelect = (categorySlug) => {
-    setSelectedCategories(prev => 
-      prev.includes(categorySlug) 
-        ? prev.filter(slug => slug !== categorySlug) 
+    setSelectedCategories(prev =>
+      prev.includes(categorySlug)
+        ? prev.filter(slug => slug !== categorySlug)
         : [...prev, categorySlug]
     );
     setCurrentPage(1);
   };
-  
+
   const handleClearCategories = () => {
     setSelectedCategories([]);
     setCurrentPage(1);
@@ -186,15 +190,14 @@ const HealthTips = () => {
   const handleArticleOpen = async (article) => {
     try {
       setOpenArticle(article);
-      const response = await fetch(`${API_URL}/articles/${article.slug}/`);
-      const fullArticle = await response.json();
-      setOpenArticle(fullArticle);
+      const { data } = await api.get(`/healthtips/articles/${article.slug}/`);
+      setOpenArticle(data);
     } catch (err) {
       console.error('Error loading article details:', err);
       showNotification('Failed to load full article content', 'error');
     }
   };
-  
+
   const handleArticleClose = () => setOpenArticle(null);
 
   const handlePageChange = (event, value) => {
@@ -204,9 +207,12 @@ const HealthTips = () => {
 
   const getCategoryNames = () => {
     if (selectedCategories.length === 0) return 'All Categories';
-    return selectedCategories.map(slug => 
-      categories.find(cat => cat.slug === slug)?.name
-    ).filter(Boolean).join(', ');
+    return selectedCategories
+      .map(slug =>
+        categories.find(cat => cat.slug === slug)?.name
+      )
+      .filter(Boolean)
+      .join(', ');
   };
 
   return (
@@ -221,13 +227,13 @@ const HealthTips = () => {
             Your guide to a healthier lifestyle
           </Typography>
         </Box>
-        
-        <Button 
-          variant="outlined" 
+
+        <Button
+          variant="outlined"
           endIcon={<KeyboardArrowDownIcon />}
           onClick={handleCategoryMenuOpen}
-          sx={{ 
-            borderRadius: 8, 
+          sx={{
+            borderRadius: 8,
             backgroundColor: '#f5f5f5',
             color: '#000',
             textTransform: 'none',
@@ -249,11 +255,11 @@ const HealthTips = () => {
               All Categories
             </Typography>
           </MenuItem>
-          {categories.map((category) => (
-            <MenuItem 
-              key={category.id} 
+          {categories.map(category => (
+            <MenuItem
+              key={category.id}
               onClick={() => handleCategorySelect(category.slug)}
-              sx={{ 
+              sx={{
                 backgroundColor: selectedCategories.includes(category.slug) ? '#f0f7ff' : 'transparent',
                 '&:hover': { backgroundColor: '#f5f5f5' }
               }}
@@ -262,7 +268,7 @@ const HealthTips = () => {
                 {selectedCategories.includes(category.slug) && (
                   <CheckIcon color="primary" sx={{ mr: 1 }} />
                 )}
-                <Typography sx={{ 
+                <Typography sx={{
                   fontWeight: selectedCategories.includes(category.slug) ? 'bold' : 'normal',
                   flexGrow: 1
                 }}>
@@ -306,10 +312,10 @@ const HealthTips = () => {
             </Typography>
           </Grid>
         ) : articles.length > 0 ? (
-          articles.map((article) => (
+          articles.map(article => (
             <Grid item xs={12} sm={6} md={4} key={article.id}>
-              <ArticleCard 
-                article={article} 
+              <ArticleCard
+                article={article}
                 handleArticleOpen={handleArticleOpen}
               />
             </Grid>
@@ -324,8 +330,8 @@ const HealthTips = () => {
       {/* Pagination */}
       {totalPages > 1 && !loading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <Pagination 
-            count={totalPages} 
+          <Pagination
+            count={totalPages}
             page={currentPage}
             onChange={handlePageChange}
             color="primary"
@@ -344,9 +350,9 @@ const HealthTips = () => {
       >
         {openArticle && (
           <>
-            <DialogTitle sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
+            <DialogTitle sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
               borderBottom: '1px solid #eee',
               py: 2
@@ -360,22 +366,25 @@ const HealthTips = () => {
             </DialogTitle>
             <DialogContent>
               <Box sx={{ mt: 2 }}>
-                <img 
-                  src={openArticle.image} 
+                <img
+                  src={openArticle.image}
                   alt={openArticle.title}
-                  style={{ 
-                    width: '100%', 
-                    height: 300, 
-                    objectFit: 'cover', 
+                  style={{
+                    width: '100%',
+                    height: 300,
+                    objectFit: 'cover',
                     borderRadius: 8,
                     marginBottom: 16
                   }}
                 />
-                <Box dangerouslySetInnerHTML={{ __html: openArticle.content }} sx={{ 
-                  '& h2': { fontSize: 24, fontWeight: 'bold', mb: 2 },
-                  '& h3': { fontSize: 20, fontWeight: 'bold', mt: 3, mb: 1.5 },
-                  '& p': { mb: 2, lineHeight: 1.6 }
-                }} />
+                <Box
+                  dangerouslySetInnerHTML={{ __html: openArticle.content }}
+                  sx={{
+                    '& h2': { fontSize: 24, fontWeight: 'bold', mb: 2 },
+                    '& h3': { fontSize: 20, fontWeight: 'bold', mt: 3, mb: 1.5 },
+                    '& p': { mb: 2, lineHeight: 1.6 }
+                  }}
+                />
               </Box>
             </DialogContent>
           </>
@@ -389,8 +398,8 @@ const HealthTips = () => {
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={handleCloseSnackbar} 
+        <Alert
+          onClose={handleCloseSnackbar}
           severity={snackbar.severity}
           sx={{ width: '100%' }}
         >

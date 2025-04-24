@@ -100,14 +100,21 @@ const ClinicsPage = () => {
       setLoading(true);
       try {
         const [analysisRes, hospitalsRes, reviewsRes] = await Promise.all([
-          api.get('analysis/'),               
-          api.get('analysis/hospitals/'),      
-          api.get('analysis/hospital-reviews/'),
+          api.get('/analysis/'),
+          api.get('/analysis/hospitals/'),
+          api.get('/analysis/hospital-reviews/'),
         ]);
 
-        const analyses = analysisRes.data;
-        const hospitals = hospitalsRes.data;
-        const reviews = reviewsRes.data;
+        // ensure we're working with arrays in case of pagination wrappers
+        const analyses = Array.isArray(analysisRes.data)
+          ? analysisRes.data
+          : analysisRes.data.results || [];
+        const hospitals = Array.isArray(hospitalsRes.data)
+          ? hospitalsRes.data
+          : hospitalsRes.data.results || [];
+        const reviews = Array.isArray(reviewsRes.data)
+          ? reviewsRes.data
+          : reviewsRes.data.results || [];
 
         const data = hospitals.map(h => {
           const tests = analyses.filter(a => a.lab_info?.id === h.id);
@@ -252,7 +259,6 @@ const ClinicsPage = () => {
                   >
                     More about the tests
                   </Button>
-                  
                 </CardActions>
               </Card>
             </Grid>

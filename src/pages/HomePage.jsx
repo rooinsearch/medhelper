@@ -6,6 +6,7 @@ import TextMain from "../components/TextMain" ;
 import Reviews from "../components/Reviews" ;
 import LoginModal from "../components/LoginModal" ;
 import ContactUs from "../components/ContactUs" ;
+import MainCatalog from "../components/MainCatalog" ;
 
 
 const HomePage = () => {
@@ -17,8 +18,10 @@ const HomePage = () => {
       <Tips/> {/* Добавляем HealthTips */}
       <TextMain/> 
       <Reviews/> 
+   
       <LoginModal/>
       <ContactUs/>
+      
    
 
       

@@ -274,7 +274,7 @@ const ProfileSettings = () => {
   return (
     <Box sx={{ p: 2, backgroundColor: "#fff", maxWidth: "100%", pt: 1 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', m: 0 }}>
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold',color: '#001A00', m: 0 }}>
           Profile Settings
         </Typography>
         {editMode ? (

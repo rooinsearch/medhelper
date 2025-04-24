@@ -105,7 +105,7 @@ const medicalBackground = `
 `;
 
 const allLaboratories = [
-  'Invivo', 'Sapalab', 'KDL Olymp', 'HealthCity', 'СУНКАР', 
+  'Invivo', 'Sapalab', 'KDL Olymp', 'HealthCity', 'СУНКАР',
   'Медикер', 'Олимп Клиник', 'ДАМУ', 'Медицинский центр ЮРФА',
   'СЕНІМ', 'Шипагер', 'EuroLab', 'LabStory', 'МедЭксперт',
   'Авиценна', 'БиоМед', 'Гемотест', 'ДНК-лаборатория',
@@ -120,7 +120,6 @@ const allCategories = [
   'Autoimmune diseases', 'Toxicology', 'Microbiology',
   'Endocrinology', 'Cardiology', 'Nephrology', 'Gastroenterology'
 ];
-
 
 const turnaroundTimes = ['Within 1 day', '1-3 days', 'More than 3 days'];
 
@@ -197,20 +196,23 @@ const CatalogPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const itemsPerPage = 9;
 
-  //axios
   useEffect(() => {
     setLoading(true);
     setError(null);
 
-    api.get('/analysis/')
+    api.get('/analysis/', { params: { page } })
       .then((response) => {
-        const adapted = response.data.map(item => ({
+        // Если ответ с пагинацией, берем results, иначе сразу data
+        const list = Array.isArray(response.data)
+          ? response.data
+          : response.data.results || [];
+        const adapted = list.map(item => ({
           id: item.id,
           title: item.title,
           description: item.description,
-          rating: parseFloat(item.rating.toFixed(1)), 
+          rating: parseFloat(item.rating.toFixed(1)),
           reviews: item.reviews,
-          reviewsData: item.reviews_data || [], // Если хотим хранить тут же
+          reviewsData: item.reviews_data || [],
           category: item.category,
           lab: item.lab,
           price: parseFloat(item.price),
@@ -225,9 +227,8 @@ const CatalogPage = () => {
       .finally(() => {
         setLoading(false);
       });
-  }, []);
+  }, [page]);
 
-  // xэндлеры
   const handleTestClick = (test) => {
     setSelectedTest(test);
     setModalOpen(true);
@@ -239,12 +240,12 @@ const CatalogPage = () => {
   };
 
   const handleFilterChange = (filter, item) => {
-    const filterMap = {
+    const map = {
       categories: setSelectedCategories,
       labs: setSelectedLabs,
       turnaround: setSelectedTurnaround
     };
-    filterMap[filter](prev => 
+    map[filter](prev =>
       prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
     );
     setPage(1);
@@ -259,69 +260,28 @@ const CatalogPage = () => {
     setPage(1);
   };
 
-  // Фильтрация
-  const filteredTests = testData.filter(test => {
-    const matchesCategory = !selectedCategories.length || selectedCategories.includes(test.category);
-    const matchesLab = !selectedLabs.length || selectedLabs.includes(test.lab);
-    const matchesTurnaround = !selectedTurnaround.length || selectedTurnaround.includes(test.ready);
-    const matchesPrice = test.price >= priceRange[0] && test.price <= priceRange[1];
-    const matchesSearch = !searchQuery || 
-      [test.title, test.lab, test.category].some(field =>
-        field.toLowerCase().includes(searchQuery.toLowerCase())
+  // Фильтрация, сортировка, пагинация...
+  const filtered = testData.filter(test => {
+    const byCat = !selectedCategories.length || selectedCategories.includes(test.category);
+    const byLab = !selectedLabs.length || selectedLabs.includes(test.lab);
+    const byTurn = !selectedTurnaround.length || selectedTurnaround.includes(test.ready);
+    const byPrice = test.price >= priceRange[0] && test.price <= priceRange[1];
+    const bySearch = !searchQuery ||
+      [test.title, test.lab, test.category].some(f =>
+        f.toLowerCase().includes(searchQuery.toLowerCase())
       );
-    return matchesCategory && matchesLab && matchesTurnaround && matchesPrice && matchesSearch;
+    return byCat && byLab && byTurn && byPrice && bySearch;
   });
 
-  // Сортировка
-  const sortedTests = [...filteredTests].sort((a, b) => {
+  const sorted = [...filtered].sort((a, b) => {
     if (sortOrder === 'priceAsc') return a.price - b.price;
     if (sortOrder === 'priceDesc') return b.price - a.price;
-    // nameAsc
     return a.title.localeCompare(b.title);
   });
 
-  // Пагинация
-  const paginatedTests = sortedTests.slice((page - 1) * itemsPerPage, page * itemsPerPage);
-  const pageCount = Math.ceil(sortedTests.length / itemsPerPage);
+  const paginated = sorted.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+  const pageCount = Math.ceil(sorted.length / itemsPerPage);
 
-  // Стили
-  const filterPanelStyle = {
-    width: { xs: '100%', md: 280 },
-    p: 3,
-    backgroundImage: `url("data:image/svg+xml;utf8,${encodeURIComponent(medicalBackground)}")`,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    bgcolor: 'rgba(240, 255, 185, 0.85)',
-    backdropFilter: 'blur(5px)',
-    borderRight: { md: '1px solid rgba(255, 255, 255, 0.12)' },
-    boxShadow: '0 2px 10px rgba(255, 255, 255, 0.1)',
-    position: 'relative',
-    overflow: 'hidden',
-    '&::before': {
-      content: '""',
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(10, 61, 47, 0.7)',
-      zIndex: 0
-    }
-  };
-
-  const cardStyle = {
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    transition: 'transform 0.3s, box-shadow 0.3s',
-    cursor: 'pointer',
-    '&:hover': {
-      transform: 'translateY(-4px)',
-      boxShadow: '0 6px 20px rgba(0,0,0,0.1)'
-    }
-  };
-
-  // Если идёт загрузка
   if (loading) {
     return (
       <Box sx={{ textAlign: 'center', py: 6 }}>
@@ -330,7 +290,6 @@ const CatalogPage = () => {
     );
   }
 
-  // Если ошибка
   if (error) {
     return (
       <Box sx={{ textAlign: 'center', py: 6 }}>
@@ -343,27 +302,30 @@ const CatalogPage = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: '100vh', bgcolor: '#f5f5f5' }}>
-      {/* Filters Panel */}
-      <Box sx={filterPanelStyle}>
+      <Box sx={{
+        width: { xs: '100%', md: 280 }, p: 3,
+        backgroundImage: `url("data:image/svg+xml;utf8,${encodeURIComponent(medicalBackground)}")`,
+        backgroundSize: 'cover', backgroundPosition: 'center',
+        bgcolor: 'rgba(240, 255, 185, 0.85)', backdropFilter: 'blur(5px)',
+        borderRight: { md: '1px solid rgba(255, 255, 255, 0.12)' }, boxShadow: '0 2px 10px rgba(255, 255, 255, 0.1)',
+        position: 'relative', overflow: 'hidden',
+        '&::before': {
+          content: '""', position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(10, 61, 47, 0.7)', zIndex: 0
+        }
+      }}>
         <Box position="relative" zIndex={1}>
           <TextField
-            fullWidth
-            placeholder="Search tests..."
-            size="small"
+            fullWidth placeholder="Search tests..." size="small"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={e => setSearchQuery(e.target.value)}
             InputProps={{
-              startAdornment: (
-                <Search fontSize="small" sx={{ color: 'white', mr: 1 }} />
-              ),
+              startAdornment: <Search fontSize="small" sx={{ color: 'white', mr: 1 }} />,
               sx: {
                 color: 'white',
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(255, 255, 255, 0)'
-                },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'white'
-                }
+                '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0)' },
+                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'white' }
               }
             }}
             sx={{ mb: 3, bgcolor: 'rgba(239, 242, 240, 0.17)' }}
@@ -373,7 +335,7 @@ const CatalogPage = () => {
             title="Test Categories"
             items={allCategories}
             selected={selectedCategories}
-            onChange={(item) => handleFilterChange('categories', item)}
+            onChange={item => handleFilterChange('categories', item)}
             color="success"
           />
 
@@ -382,13 +344,10 @@ const CatalogPage = () => {
           </Typography>
           <Slider
             value={priceRange}
-            onChange={(_, newValue) => setPriceRange(newValue)}
-            min={0}
-            max={40000}
-            step={1000}
-            valueLabelDisplay="auto"
-            valueLabelFormat={(value) => `${value.toLocaleString()} ₸`}
-            sx={{ 
+            onChange={(_, newVal) => setPriceRange(newVal)}
+            min={0} max={40000} step={1000} valueLabelDisplay="auto"
+            valueLabelFormat={val => `${val.toLocaleString()} ₸`}
+            sx={{
               my: 2,
               color: 'white',
               '& .MuiSlider-thumb': {
@@ -407,7 +366,7 @@ const CatalogPage = () => {
             title="Turnaround Time"
             items={turnaroundTimes}
             selected={selectedTurnaround}
-            onChange={(item) => handleFilterChange('turnaround', item)}
+            onChange={item => handleFilterChange('turnaround', item)}
             color="success"
           />
 
@@ -415,17 +374,13 @@ const CatalogPage = () => {
             title="Laboratories"
             items={allLaboratories}
             selected={selectedLabs}
-            onChange={(item) => handleFilterChange('labs', item)}
+            onChange={item => handleFilterChange('labs', item)}
             color="success"
           />
 
           <Button
-            variant="outlined"
-            fullWidth
-            sx={{ 
-              mt: 2,
-              color: 'white',
-              borderColor: 'white',
+            variant="outlined" fullWidth sx={{
+              mt: 2, color: 'white', borderColor: 'white',
               '&:hover': {
                 borderColor: 'white',
                 backgroundColor: 'rgba(255, 255, 255, 0.08)'
@@ -438,9 +393,8 @@ const CatalogPage = () => {
         </Box>
       </Box>
 
-      {/* Results Section */}
       <Box sx={{ flex: 1, p: 3 }}>
-        <Box sx={{ 
+        <Box sx={{
           display: 'flex',
           flexDirection: { xs: 'column', sm: 'row' },
           justifyContent: 'space-between',
@@ -448,13 +402,13 @@ const CatalogPage = () => {
           mb: 3
         }}>
           <Typography variant="h6" color="text.primary" sx={{ mb: { xs: 2, sm: 0 } }}>
-            Found {filteredTests.length} tests
+            Found {filtered.length} tests
           </Typography>
           <ToggleButtonGroup
             size="small"
             value={sortOrder}
             exclusive
-            onChange={(_, value) => value && setSortOrder(value)}
+            onChange={(_, val) => val && setSortOrder(val)}
             sx={{
               '& .MuiToggleButton-root': {
                 color: 'primary.main',
@@ -472,7 +426,7 @@ const CatalogPage = () => {
           </ToggleButtonGroup>
         </Box>
 
-        {!filteredTests.length ? (
+        {!filtered.length ? (
           <Box sx={{ textAlign: 'center', py: 6 }}>
             <Typography variant="h6" color="text.secondary">No results found</Typography>
             <Typography variant="body2" color="text.secondary">
@@ -482,22 +436,31 @@ const CatalogPage = () => {
         ) : (
           <>
             <Grid container spacing={3}>
-              {paginatedTests.map((test) => (
+              {paginated.map(test => (
                 <Grid item xs={12} sm={6} md={4} key={test.id}>
-                  <Card sx={cardStyle} onClick={() => handleTestClick(test)}>
+                  <Card sx={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    transition: 'transform 0.3s, box-shadow 0.3s',
+                    cursor: 'pointer',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: '0 6px 20px rgba(0,0,0,0.1)'
+                    }
+                  }} onClick={() => handleTestClick(test)}>
                     <CardContent sx={{ flexGrow: 1 }}>
                       <Box display="flex" justifyContent="space-between">
-                        <Chip 
-                          label={test.category} 
-                          size="small" 
-                          color="success" 
-                          sx={{ color: 'white', mb: 1 }} 
+                        <Chip
+                          label={test.category}
+                          size="small"
+                          color="success"
+                          sx={{ color: 'white', mb: 1 }}
                         />
                         <IconButton
                           size="small"
-                          onClick={(e) => {
+                          onClick={e => {
                             e.stopPropagation();
-                            // TODO: handle bookmark
                           }}
                         >
                           <BookmarkBorder fontSize="small" />
@@ -529,9 +492,8 @@ const CatalogPage = () => {
                       <IconButton
                         color="primary"
                         size="small"
-                        onClick={(e) => {
+                        onClick={e => {
                           e.stopPropagation();
-                          // TODO: handle add to cart
                         }}
                       >
                         <ShoppingCart fontSize="small" />
@@ -547,7 +509,7 @@ const CatalogPage = () => {
                 <Pagination
                   count={pageCount}
                   page={page}
-                  onChange={(_, value) => setPage(value)}
+                  onChange={(_, val) => setPage(val)}
                   color="primary"
                   shape="rounded"
                 />
@@ -557,7 +519,6 @@ const CatalogPage = () => {
         )}
       </Box>
 
-      {/* Модальное окно с деталями */}
       <TestDetailsModal
         open={modalOpen}
         handleClose={handleCloseModal}

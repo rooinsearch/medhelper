@@ -32,7 +32,6 @@ const Header = ({ isAuthenticated, onLogin, cartItemCount = 0 }) => {
   const [cityModalOpen, setCityModalOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [unreadNotifications] = useState(2);
   const isMobile = useMediaQuery("(max-width:900px)");
 
   const location = useLocation();
@@ -164,11 +163,9 @@ const Header = ({ isAuthenticated, onLogin, cartItemCount = 0 }) => {
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
               {isAuthenticated ? (
                 <IconButton color="inherit" onClick={handleAvatarClick} sx={{ "&:hover": { color: "#FFA500" } }}>
-                  <Badge badgeContent={unreadNotifications} color="error">
-                    <motion.div whileHover={{ scale: 1.1 }}>
-                      <Avatar sx={{ width: 32, height: 32, bgcolor: "#FFA500", fontSize: 14 }}>U</Avatar>
-                    </motion.div>
-                  </Badge>
+                  <motion.div whileHover={{ scale: 1.1 }}>
+                    <Avatar sx={{ width: 32, height: 32, bgcolor: "#FFA500", fontSize: 14 }}>U</Avatar>
+                </motion.div>
                 </IconButton>
               ) : (
                 <Button color="inherit" onClick={() => setAuthModalOpen(true)} sx={{ "&:hover": { color: "#FFA500" }, fontSize: isMobile ? "0.75rem" : "inherit" }}>

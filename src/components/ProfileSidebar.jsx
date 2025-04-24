@@ -18,19 +18,27 @@ import {
   History as HistoryIcon,
   Assignment as ResultsIcon,
   Notifications as NotificationsIcon,
-  Star as FavoritesIcon,
   RateReview as ReviewsIcon,
 } from "@mui/icons-material";
 
 import ProfileSettings from "./ProfileSettings";
 import TestHistory from "./TestHistory";
-
+import Notifications from "./Notifications";
+import MyRevProfile from "./MyRevProfile";
 
 const drawerWidth = 280;
 
-const ProfileSidebar = () => {
+const ProfileSidebar = ({ updateUnreadCount }) => {
   const [open, setOpen] = useState(true);
   const [activeSection, setActiveSection] = useState("profile");
+  const [unreadNotifications, setUnreadNotifications] = useState(3);
+
+  const handleUpdateUnreadCount = (count) => {
+    setUnreadNotifications(count);
+    if (updateUnreadCount) {
+      updateUnreadCount(count);
+    }
+  };
 
   const toggleDrawer = () => setOpen(!open);
 
@@ -43,6 +51,7 @@ const ProfileSidebar = () => {
     window.location.reload();
   };
 
+  // Удален пункт "Favourites" из меню
   const menuItems = [
     { id: "profile", text: "Profile & Settings", icon: <SettingsIcon /> },
     { id: "test-history", text: "Test Information", icon: <ResultsIcon /> },
@@ -50,15 +59,14 @@ const ProfileSidebar = () => {
       id: "notifications",
       text: "Notifications",
       icon: <NotificationsIcon />,
-      badge: 3,
+      badge: unreadNotifications,
     },
-    { id: "favourites", text: "Favourites", icon: <FavoritesIcon /> },
     { id: "my-reviews", text: "My Reviews", icon: <ReviewsIcon /> },
   ];
 
   return (
     <Box sx={{ display: "flex", height: "100vh", bgcolor: "#f1f1f1" }}>
-      {/* бургер‑кнопка для mobile */}
+      {/* Кнопка меню для мобильных */}
       <IconButton
         onClick={toggleDrawer}
         sx={{
@@ -75,7 +83,7 @@ const ProfileSidebar = () => {
         <MenuIcon />
       </IconButton>
 
-      {/* левое меню */}
+      {/* Боковое меню */}
       <Drawer
         variant={open ? "permanent" : "temporary"}
         open={open}
@@ -137,7 +145,7 @@ const ProfileSidebar = () => {
 
         <Divider sx={{ my: 1 }} />
 
-        {/* кнопка выхода */}
+        {/* Кнопка выхода */}
         <ListItem
           button
           onClick={handleLogout}
@@ -159,7 +167,7 @@ const ProfileSidebar = () => {
         </ListItem>
       </Drawer>
 
-      {/* правая часть (контент) */}
+      {/* Основной контент */}
       <Box
         component="main"
         sx={{
@@ -196,12 +204,14 @@ const ProfileSidebar = () => {
               <ProfileSettings />
             ) : activeSection === "test-history" ? (
               <TestHistory />
+            ) : activeSection === "notifications" ? (
+              <Notifications updateUnreadCount={handleUpdateUnreadCount} />
+            ) : activeSection === "my-reviews" ? (
+              <MyRevProfile />
             ) : (
               <Typography variant="h6" color="textSecondary">
                 {menuItems.find((m) => m.id === activeSection)?.text
-                  ? `${
-                      menuItems.find((m) => m.id === activeSection).text
-                    } section content will be loaded here`
+                  ? `${menuItems.find((m) => m.id === activeSection).text} section content will be loaded here`
                   : "Section not found"}
               </Typography>
             )}
