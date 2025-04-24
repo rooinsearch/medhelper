@@ -49,9 +49,9 @@ export default function HomepageHealthTips() {
         const [tipsResponse, latestArticlesResponse] = await Promise.all([
           api.get('/health-tips/').catch(e => ({ data: [] })),
           // Запрос последних добавленных статей
-          api.get('/articles/?limit=3&ordering=-created_at').catch(e => ({ data: [] }))
+          api.get('/healthtips/articles/?limit=3&ordering=-created_at').catch(e => ({ data: [] }))
           // Альтернативный вариант, если на сервере есть специальный эндпоинт
-          // api.get('/articles/latest/').catch(e => ({ data: [] }))
+          // api.get('/healthtips/articles/latest/').catch(e => ({ data: [] }))
         ]);
 
         setTips(tipsResponse.data.slice(0, isMobile ? 2 : 3));
@@ -217,7 +217,7 @@ export default function HomepageHealthTips() {
                     boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
                   }
                 }} 
-                onClick={() => navigate(`/articles/${article.slug}`)}
+                onClick={() => navigate(`/healthtips/articles/${article.slug}`)}
               >
                 <Typography variant="body2" fontWeight="bold">
                   {article.title}
