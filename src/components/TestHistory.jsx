@@ -1,196 +1,107 @@
 import React, { useState, useEffect } from "react";
 import {
-  Box,
-  Grid,
-  Card,
-  CardContent,
-  Typography,
-  Chip,
-  Button,
-  Modal,
-  Avatar,
-  Stack,
-  Paper,
-  CircularProgress
+  Box, Grid, Card, CardContent, Typography, Chip, Button, Modal,
+  Avatar, Stack, Paper, CircularProgress
 } from "@mui/material";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import { format } from "date-fns";
-import api from "../api/axios"; // Убедитесь, что путь к API корректный
+import api from "../api/axios";
 
-// Цветовая палитра (ваши стили)
-const colors = {
-  primary: "#1a5f1a",
-  accent: "#4caf50",
-  background: "#e8f5e9",
-  error: "#d32f2f",
-  warning: "#ed6c02"
-};
+const colors = { accent:"#4caf50", bg:"white" };
+const statusColor = { pending:"info", processing:"warning", completed:"success", rejected:"error" };
 
-// Стили для карточек (ваши стили)
-const cardStyles = {
-  root: {
-    cursor: "pointer",
-    borderRadius: 1,
-    borderLeft: "3px solid " + colors.accent,
-    boxShadow: "0 1px 4px rgba(0, 30, 0, 0.1)",
-    transition: "all 0.2s ease",
-    "&:hover": {
-      transform: "translateY(-2px)",
-      boxShadow: "0 2px 8px rgba(0, 30, 0, 0.15)"
-    }
-  },
-  content: {
-    p: 1.5
-  }
-};
+const CardBox = ({ children, ...props }) => (
+  <Card
+    {...props}
+    elevation={3}
+    sx={{
+      borderRadius:3,
+      borderLeft:`6px solid ${colors.accent}`,
+      transition:"transform .25s",
+      "&:hover":{ transform:"translateY(-4px)", boxShadow:6 }
+    }}
+  >
+    {children}
+  </Card>
+);
 
-// Модальное окно (ваши стили)
-const DetailModal = ({ open, onClose, record }) => {
-  if (!record) return null;
-
+const DetailModal = ({ open, onClose, rec }) => {
+  if (!rec) return null;
   return (
     <Modal open={open} onClose={onClose}>
       <Box sx={{
-        position: "absolute",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        width: "85%",
-        maxWidth: 400,
-        bgcolor: "background.paper",
-        borderRadius: 1,
-        boxShadow: 8,
-        p: 2,
-        borderLeft: "3px solid " + colors.accent
+        position:"absolute", top:"50%", left:"50%", transform:"translate(-50%, -50%)",
+        bgcolor:"background.paper", p:3, borderRadius:3, boxShadow:8, width:"90%", maxWidth:380
       }}>
-        {/* ... (ваше содержимое модального окна без изменений) ... */}
+        <Stack spacing={1.5}>
+          <Typography variant="h6" fontWeight={700}>{rec.analysis.title}</Typography>
+          <Typography variant="body2" color="text.secondary">{rec.hospital?.name||"-"}</Typography>
+          <Typography><strong>Date:</strong> {format(new Date(rec.test_date),"dd MMM yyyy")}</Typography>
+          <Typography><strong>Notes:</strong> {rec.notes||"-"}</Typography>
+          <Typography><strong>Result:</strong> {rec.result||"-"}</Typography>
+          <Typography><strong>Status:</strong>{" "}
+            <Chip label={rec.status} color={statusColor[rec.status]} size="small"/>
+          </Typography>
+          <Typography><strong>Reviewed:</strong> {rec.reviewed_at ? new Date(rec.reviewed_at).toLocaleString() : "-"}</Typography>
+          <Box textAlign="right"><Button variant="contained" onClick={onClose}>Close</Button></Box>
+        </Stack>
       </Box>
     </Modal>
   );
 };
 
-// Основной компонент с бэкенд-логикой
 const TestHistoryPage = () => {
-  const [testRecords, setTestRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [selectedRecord, setSelectedRecord] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [recs,setRecs] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [error,setError] = useState(null);
+  const [sel,setSel] = useState(null);
 
-  // Загрузка данных с бэкенда
-  useEffect(() => {
-    const fetchTestRecords = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get("/analysis/records/");
-        setTestRecords(response.data);
-      } catch (err) {
-        console.error("Error fetching test records:", err);
-        setError("Failed to load test records");
-      } finally {
-        setLoading(false);
-      }
-    };
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const { data } = await api.get("/analysis/records/");
+        const list = Array.isArray(data)?data:Array.isArray(data.results)?data.results:Array.isArray(data.data)?data.data:[];
+        setRecs(list);
+        setError(null);
+      }catch(e){ console.error(e); setError("Failed to load records"); }
+      finally{ setLoading(false); }
+    })();
+  },[]);
 
-    fetchTestRecords();
-  }, []);
+  if(loading) return <Box sx={{display:"flex",justifyContent:"center",mt:8}}><CircularProgress/></Box>;
+  if(error)   return <Box sx={{p:3,textAlign:"center"}}><Typography color="error">{error}</Typography></Box>;
 
-  const handleCardClick = (record) => {
-    setSelectedRecord(record);
-    setModalOpen(true);
-  };
-
-  // Состояние загрузки
-  if (loading) {
-    return (
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '200px'
-      }}>
-        <CircularProgress sx={{ color: colors.primary }} />
-      </Box>
-    );
-  }
-
-  // Состояние ошибки
-  if (error) {
-    return (
-      <Box sx={{ 
-        p: 3, 
-        textAlign: 'center',
-        bgcolor: colors.background,
-        borderRadius: 1,
-        borderLeft: `3px solid ${colors.error}`
-      }}>
-        <Typography color="error">{error}</Typography>
-        <Button 
-          variant="outlined" 
-          onClick={() => window.location.reload()}
-          sx={{ 
-            mt: 2,
-            color: colors.primary,
-            borderColor: colors.primary
-          }}
-        >
-          Retry
-        </Button>
-      </Box>
-    );
-  }
-
-  // Ваш интерфейс с восстановленной бэкенд-логикой
   return (
-    <Box sx={{ p: 2 }}>
-      {/* Заголовок (ваш стиль) */}
-      <Box sx={{ width: "100%", transform: 'translateY(-6px)', ml: 0 }}>
-        <Typography variant="h6" sx={{ 
-          fontWeight: 'bold', 
-          color: '#001A00'
-        }}>
-          Test History & Results
-        </Typography>
-      </Box>
+    <Box sx={{p:3,bgcolor:colors.bg,minHeight:"100vh"}}>
+      <Typography variant="h4" fontWeight={700} mb={3}>Test History & Results</Typography>
 
-      {/* Список тестов (ваш стиль) */}
-      {testRecords.length === 0 ? (
-        <Paper sx={{ 
-          p: 2, 
-          textAlign: 'center',
-          bgcolor: colors.background,
-          borderRadius: 1,
-          borderLeft: `3px solid ${colors.accent}`,
-          mt: 3
-        }}>
-          <Typography variant="body2">
-            No test records available
-          </Typography>
-        </Paper>
-      ) : (
-        <Grid container spacing={2} sx={{ mt: 0.5 }}>
-          {testRecords.map((record) => (
-            <Grid item xs={12} sm={6} md={4} key={record.id}>
-              <Card 
-                sx={cardStyles.root}
-                onClick={() => handleCardClick(record)}
-              >
-                <CardContent sx={cardStyles.content}>
-                  {/* ... (ваше содержимое карточки без изменений) ... */}
+      {recs.length===0 ? (
+        <Paper sx={{p:3,textAlign:"center",borderLeft:`6px solid ${colors.accent}`}}>No records</Paper>
+      ):(
+        <Grid container spacing={3}>
+          {recs.map(r=>(
+            <Grid item xs={12} sm={6} md={4} key={r.id}>
+              <CardBox onClick={()=>setSel(r)}>
+                <CardContent sx={{p:2}}>
+                  <Stack spacing={1}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Avatar sx={{bgcolor:colors.accent}}><AssignmentIcon/></Avatar>
+                      <Typography fontWeight={600}>{r.analysis.title}</Typography>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      {format(new Date(r.test_date),"dd MMM yyyy")}
+                    </Typography>
+                    <Chip label={r.status} color={statusColor[r.status]} size="small" sx={{textTransform:"capitalize"}}/>
+                  </Stack>
                 </CardContent>
-              </Card>
+              </CardBox>
             </Grid>
           ))}
         </Grid>
       )}
 
-      <DetailModal 
-        open={modalOpen} 
-        onClose={() => setModalOpen(false)} 
-        record={selectedRecord} 
-      />
+      <DetailModal open={Boolean(sel)} onClose={()=>setSel(null)} rec={sel}/>
     </Box>
   );
 };
-
 export default TestHistoryPage;

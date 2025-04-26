@@ -14,6 +14,7 @@ const ContactUs = () => {
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isHovering, setIsHovering] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -231,34 +232,33 @@ const ContactUs = () => {
               ))}
               
               <div style={{ display: "flex", justifyContent: "center", marginTop: "30px" }}>
-  <button
-    type="submit"
-    style={{
-      backgroundColor: isSubmitted ? "rgba(76, 175, 80, 0.8)" : "#001A00", // Изменён цвет для состояния isSubmitted
-      color: "white",
-      border: "none",
-      borderRadius: "25px",
-      padding: "12px 50px",
-      fontSize: "16px",
-      cursor: "pointer",
-      transition: "all 0.3s ease",
-      width: isMobile ? "100%" : "auto",
-      fontWeight: 500,
-      ':hover': {
-        backgroundColor: "#FFA500", // Новый цвет при наведении
-        transform: "translateY(-2px)",
-        boxShadow: "0 4px 8px rgba(0,0,0,0.1)"
-      },
-      ':active': {
-        backgroundColor: "#FFA500", // Темнее на 20% при нажатии
-        transform: "translateY(0)"
-      }
-    }}
-    disabled={isSubmitted}
-  >
-    {isSubmitted ? "Sending..." : "Submit"}
-  </button>
-</div>
+                <button
+                  type="submit"
+                  onMouseEnter={() => setIsHovering(true)}
+                  onMouseLeave={() => setIsHovering(false)}
+                  style={{
+                    backgroundColor: isSubmitted 
+                      ? "rgba(76, 175, 80, 0.8)" 
+                      : isHovering 
+                        ? "#FFA500" // Orange color on hover
+                        : "#001A00",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "25px",
+                    padding: "12px 50px",
+                    fontSize: "16px",
+                    cursor: "pointer",
+                    transition: "all 0.3s ease",
+                    width: isMobile ? "100%" : "auto",
+                    fontWeight: 500,
+                    transform: isHovering ? "translateY(-2px)" : "translateY(0)",
+                    boxShadow: isHovering ? "0 4px 8px rgba(0,0,0,0.1)" : "none"
+                  }}
+                  disabled={isSubmitted}
+                >
+                  {isSubmitted ? "Sending..." : "Submit"}
+                </button>
+              </div>
             </form>
           </div>
         </div>

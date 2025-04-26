@@ -12,7 +12,6 @@ const Reviews = () => {
   const [reviews, setReviews] = useState([]);
 
   useEffect(() => {
-    // Загрузка отзывов из JSON-файла
     fetch('/data/testimonials.json')
       .then(response => {
         if (!response.ok) {
@@ -23,7 +22,6 @@ const Reviews = () => {
       .then(data => setReviews(data))
       .catch(error => {
         console.error('Error loading reviews:', error);
-        // Fallback на мок-данные если файл не загрузился
         setReviews([
           {
             id: 1,
@@ -118,7 +116,7 @@ const Reviews = () => {
                       {review.name[0].toUpperCase()}
                     </Avatar>
                     <Typography variant="subtitle2" fontWeight="bold" fontSize="0.7rem">
-                      @{review.name}
+                      {review.name}
                     </Typography>
                   </Box>
                 </Card>

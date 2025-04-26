@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -32,30 +31,48 @@ const MyRevProfile = () => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
 
   // Проверяем, можно ли редактировать отзыв (в течение 24 часов)
-  const canEditReview = (reviewDate) => {
+  const canEditReview = useCallback((reviewDate) => {
     const now = new Date();
     const reviewTime = new Date(reviewDate);
     const hoursDiff = (now - reviewTime) / (1000 * 60 * 60);
     return hoursDiff < 24;
-  };
+  }, []);
+
+  // Показ уведомлений
+  const showSnackbar = useCallback((message, severity) => {
+    setSnackbar({ open: true, message, severity });
+  }, []);
 
   // Загрузка отзывов с бэкенда
   useEffect(() => {
+    const abortController = new AbortController();
+
     const fetchReviews = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/reviews/my/');
-        setReviews(response.data);
-        setLoading(false);
+        const response = await api.get('/reviews/my/', {
+          signal: abortController.signal
+        });
+
+        if (response.data && Array.isArray(response.data)) {
+          setReviews(response.data);
+        } else {
+          throw new Error('Invalid data format received');
+        }
       } catch (err) {
-        setError(err.message);
+        if (!abortController.signal.aborted) {
+          setError(err.message);
+          showSnackbar('Failed to load reviews', 'error');
+        }
+      } finally {
         setLoading(false);
-        showSnackbar('Failed to load reviews', 'error');
       }
     };
 
     fetchReviews();
-  }, []);
+
+    return () => abortController.abort();
+  }, [showSnackbar]);
 
   const handleDeleteReview = async (id) => {
     try {
@@ -78,6 +95,8 @@ const MyRevProfile = () => {
   };
 
   const handleEditSubmit = async () => {
+    if (!editingReview) return;
+
     try {
       const updatedReview = {
         ...editingReview,
@@ -98,12 +117,19 @@ const MyRevProfile = () => {
     }
   };
 
-  const showSnackbar = (message, severity) => {
-    setSnackbar({ open: true, message, severity });
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
   };
 
-  const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
+  const formatDate = (dateString) => {
+    const options = { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    };
+    return new Date(dateString).toLocaleString('en-US', options);
   };
 
   if (loading) {
@@ -179,9 +205,9 @@ const MyRevProfile = () => {
           }
         }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {reviews.map((review) => (
+            {reviews.map((review, index) => (
               <Card 
-                key={review.id} 
+                key={review.id || `review-${index}`}
                 sx={{ 
                   borderRadius: 1,
                   borderLeft: '3px solid #4caf50',
@@ -203,7 +229,7 @@ const MyRevProfile = () => {
                           fontSize: '0.9rem'
                         }}
                       >
-                        {review.doctor_name}
+                        {review.doctor_name || 'Unknown doctor'}
                       </Typography>
                       <Typography 
                         variant="body2" 
@@ -213,24 +239,26 @@ const MyRevProfile = () => {
                           fontSize: '0.75rem'
                         }}
                       >
-                        {review.doctor_specialty}
+                        {review.doctor_specialty || 'General practice'}
                       </Typography>
-                      <Chip 
-                        label={review.clinic_name} 
-                        size="small" 
-                        sx={{ 
-                          bgcolor: '#e8f5e9', 
-                          color: '#004d00',
-                          mb: 0.5,
-                          height: '22px',
-                          fontSize: '0.65rem'
-                        }} 
-                      />
+                      {review.clinic_name && (
+                        <Chip 
+                          label={review.clinic_name} 
+                          size="small" 
+                          sx={{ 
+                            bgcolor: '#e8f5e9', 
+                            color: '#004d00',
+                            mb: 0.5,
+                            height: '22px',
+                            fontSize: '0.65rem'
+                          }} 
+                        />
+                      )}
                     </Box>
                     
                     <Box sx={{ display: 'flex', alignItems: 'center', ml: 0.5 }}>
                       <Rating
-                        value={review.rating}
+                        value={review.rating || 0}
                         readOnly
                         precision={0.5}
                         size="small"
@@ -240,21 +268,23 @@ const MyRevProfile = () => {
                     </Box>
                   </Box>
 
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      mt: 0.5,
-                      color: '#333',
-                      fontSize: '0.8rem',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                      lineHeight: '1.3'
-                    }}
-                  >
-                    "{review.comment}"
-                  </Typography>
+                  {review.comment && (
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        mt: 0.5,
+                        color: '#333',
+                        fontSize: '0.8rem',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        lineHeight: '1.3'
+                      }}
+                    >
+                      "{review.comment}"
+                    </Typography>
+                  )}
 
                   <Divider sx={{ my: 0.5 }} />
 
@@ -270,7 +300,7 @@ const MyRevProfile = () => {
                         fontSize: '0.65rem'
                       }}
                     >
-                      Posted {new Date(review.created_at).toLocaleString()}
+                      Posted {formatDate(review.created_at)}
                       {!canEditReview(review.created_at) && (
                         <Typography component="span" variant="caption" sx={{ color: '#d32f2f', ml: 0.5, fontSize: '0.65rem' }}>
                           (editing expired)

@@ -11,6 +11,7 @@ import {
   Close as CloseIcon,
   Check as CheckIcon
 } from '@mui/icons-material';
+import ReactMarkdown from 'react-markdown';
 import api from '../api/axios';
 
 const ARTICLES_PER_PAGE = 10;
@@ -347,6 +348,12 @@ const HealthTips = () => {
         maxWidth="md"
         fullWidth
         scroll="paper"
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            maxHeight: '90vh'
+          }
+        }}
       >
         {openArticle && (
           <>
@@ -355,12 +362,20 @@ const HealthTips = () => {
               justifyContent: 'space-between',
               alignItems: 'center',
               borderBottom: '1px solid #eee',
-              py: 2
+              py: 2,
+              pr: 6
             }}>
-              <Typography variant="h6" component="div">
+              <Typography variant="h5" component="div" sx={{ fontWeight: 'bold' }}>
                 {openArticle.title}
               </Typography>
-              <IconButton onClick={handleArticleClose}>
+              <IconButton 
+                onClick={handleArticleClose}
+                sx={{
+                  position: 'absolute',
+                  right: 12,
+                  top: 12
+                }}
+              >
                 <CloseIcon />
               </IconButton>
             </DialogTitle>
@@ -371,20 +386,72 @@ const HealthTips = () => {
                   alt={openArticle.title}
                   style={{
                     width: '100%',
-                    height: 300,
+                    height: 'auto',
+                    maxHeight: '400px',
                     objectFit: 'cover',
                     borderRadius: 8,
-                    marginBottom: 16
+                    margin: '24px auto',
+                    display: 'block'
                   }}
                 />
-                <Box
-                  dangerouslySetInnerHTML={{ __html: openArticle.content }}
-                  sx={{
-                    '& h2': { fontSize: 24, fontWeight: 'bold', mb: 2 },
-                    '& h3': { fontSize: 20, fontWeight: 'bold', mt: 3, mb: 1.5 },
-                    '& p': { mb: 2, lineHeight: 1.6 }
-                  }}
-                />
+                <Box sx={{
+                  maxWidth: '800px',
+                  margin: '0 auto',
+                  padding: '0 24px',
+                  '& h1': {
+                    fontSize: '2.2rem',
+                    fontWeight: 'bold',
+                    mb: 2,
+                    lineHeight: 1.3,
+                    borderBottom: '1px solid #eee',
+                    paddingBottom: '0.5rem'
+                  },
+                  '& h2': {
+                    fontSize: '1.8rem',
+                    fontWeight: 'bold',
+                    mb: 1.5,
+                    lineHeight: 1.3
+                  },
+                  '& h3': {
+                    fontSize: '1.5rem',
+                    fontWeight: 'bold',
+                    mt: 2,
+                    mb: 1,
+                    lineHeight: 1.4
+                  },
+                  '& p': {
+                    mb: 1.5,
+                    lineHeight: 1.8,
+                    fontSize: '1.1rem'
+                  },
+                  '& ul, & ol': {
+                    mb: 2,
+                    pl: 3,
+                    '& li': {
+                      mb: 1,
+                      lineHeight: 1.8
+                    }
+                  },
+                  '& img': {
+                    maxWidth: '100%',
+                    height: 'auto',
+                    borderRadius: 1,
+                    my: 3,
+                    mx: 'auto',
+                    display: 'block'
+                  },
+                  '@media (max-width: 600px)': {
+                    padding: '0 16px',
+                    '& p': {
+                      fontSize: '1rem',
+                      lineHeight: 1.7
+                    }
+                  }
+                }}>
+                  <ReactMarkdown>
+                    {openArticle.content}
+                  </ReactMarkdown>
+                </Box>
               </Box>
             </DialogContent>
           </>

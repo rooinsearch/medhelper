@@ -2,219 +2,88 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import api from "../api/axios";
 import {
-  Box,
-  Typography,
-  Card,
-  CardHeader,
-  CardContent,
-  Chip,
-  Stack,
-  IconButton,
-  Collapse,
-  Avatar,
-  Divider,
-  useTheme,
-  TableContainer,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  TablePagination,
-  Paper,
-  CircularProgress,
-  GlobalStyles
+  Box, Typography, Card, CardHeader, CardContent, Chip, Stack, IconButton, Collapse,
+  Avatar, Divider, useTheme, TableContainer, Table, TableHead, TableRow, TableCell,
+  TableBody, TablePagination, Paper, CircularProgress, GlobalStyles, styled
 } from "@mui/material";
 import { ExpandMore, ExpandLess, ShoppingBag, ArrowBack } from "@mui/icons-material";
 
-/* ---------- palette ---------- */
-const colors = {
-  background: "#f8f9fa"
-};
+const BG = { background: "#f8f9fa" };
+const statusColor = { pending:"default", processing:"warning", completed:"success", rejected:"error" };
+const currency = new Intl.NumberFormat(undefined,{ style:"currency", currency:"KZT", maximumFractionDigits:0 });
 
-const statusColor = {
-  pending: "default",
-  processing: "warning",
-  completed: "success",
-  rejected: "error"
-};
-
-const currencyFormatter = new Intl.NumberFormat(undefined, {
-  style: "currency",
-  currency: "KZT",
-  maximumFractionDigits: 0
-});
+const HeadCell = styled(TableCell)(({ theme }) => ({
+  fontWeight: 600,
+  background: theme.palette.grey[100]
+}));
 
 const MyTestsPage = () => {
   const theme = useTheme();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const nav   = useNavigate();
+  const loc   = useLocation();
 
-  const [openFresh, setOpenFresh] = useState(true);
-  const [records, setRecords] = useState([]);
-  const [newRecords, setNewRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [records,setRecords]  = useState([]);
+  const [fresh,setFresh]      = useState([]);
+  const [openFresh,setOpen]   = useState(true);
+  const [loading,setLoading]  = useState(true);
+  const [error,setError]      = useState(null);
 
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [page,setPage] = useState(0);
+  const [rows,setRows] = useState(5);
 
-  /* ---------- load data ---------- */
-  useEffect(() => {
-    const fetchRecords = async () => {
-      try {
+  /* fetch */
+  useEffect(()=>{
+    (async()=>{
+      try{
         setLoading(true);
-
         const { data } = await api.get("/analysis/records/");
-        setRecords(data);
-
-        if (location.state?.newRecords) {
-          setNewRecords(location.state.newRecords);
-        } else if (data.length > 0) {
-          setNewRecords(data.slice(0, 2));
-        }
-
+        const list = Array.isArray(data)?data:Array.isArray(data.results)?data.results:Array.isArray(data.data)?data.data:[];
+        setRecords(list);
+        setFresh(Array.isArray(loc.state?.newRecords)?loc.state.newRecords:list.slice(0,2));
         setError(null);
-      } catch (err) {
-        console.error("Failed to fetch records:", err);
-        setError("Failed to load test records. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
+      }catch(e){
+        console.error(e);
+        setError("Failed to load test records");
+      }finally{ setLoading(false); }
+    })();
+  },[loc.state]);
 
-    fetchRecords();
-  }, [location.state]);
+  /* loading / error */
+  if(loading)
+    return <Box sx={{display:"flex",justifyContent:"center",alignItems:"center",height:"60vh"}}><CircularProgress/></Box>;
+  if(error)
+    return <Box sx={{p:4,textAlign:"center"}}><Typography color="error">{error}</Typography></Box>;
 
-  /* ---------- handlers ---------- */
-  const handleChangePage = (_e, newPage) => setPage(newPage);
-  const handleChangeRowsPerPage = (e) => {
-    setRowsPerPage(parseInt(e.target.value, 10));
-    setPage(0);
-  };
-  const handleBack = () => navigate(-1);
-
-  /* ---------- global bg ---------- */
-  const globalBg = (
-    <GlobalStyles styles={{ body: { backgroundColor: colors.background } }} />
-  );
-
-  /* ---------- loading & error ---------- */
-  if (loading) {
-    return (
-      <>
-        {globalBg}
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: "100vh"
-          }}
-        >
-          <CircularProgress color="success" />
-        </Box>
-      </>
-    );
-  }
-
-  if (error) {
-    return (
-      <>
-        {globalBg}
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: "100vh",
-            px: 3
-          }}
-        >
-          <Typography color="error" align="center">
-            {error}
-          </Typography>
-        </Box>
-      </>
-    );
-  }
-
-  /* ---------- main UI ---------- */
   return (
     <>
-      {globalBg}
-      <Box
-        sx={{
-          px: { xs: 2, md: 6 },
-          py: { xs: 3, md: 6 },
-          maxWidth: 1400,
-          mx: "auto",
-          width: "100%",
-          minHeight: "100vh"
-        }}
-      >
-        {/* Header */}
-        <Stack direction="row" alignItems="center" spacing={1} mb={4}>
-          <IconButton onClick={handleBack} sx={{ mr: 1 }}>
-            <ArrowBack />
-          </IconButton>
-          <Avatar sx={{ bgcolor: theme.palette.success.main }}>
-            <ShoppingBag />
-          </Avatar>
-          <Typography variant="h4" fontWeight={700}>
-            My Medical Tests
-          </Typography>
+      <GlobalStyles styles={{body:{backgroundColor:BG.background}}}/>
+      <Box sx={{maxWidth:1400,mx:"auto",p:{xs:2,md:6}}}>
+
+        {/* header */}
+        <Stack direction="row" spacing={1} alignItems="center" mb={4}>
+          <IconButton onClick={()=>nav(-1)}><ArrowBack/></IconButton>
+          <Avatar sx={{bgcolor:theme.palette.success.main}}><ShoppingBag/></Avatar>
+          <Typography variant="h4" fontWeight={700}>My Medical Tests</Typography>
         </Stack>
 
-        {/* Recent Tests Card */}
-        {newRecords.length > 0 && (
-          <Card
-            elevation={2}
-            sx={{
-              mb: 5,
-              borderRadius: 4,
-              borderLeft: `4px solid ${theme.palette.success.main}`
-            }}
-          >
+        {/* recent */}
+        {fresh.length>0 && (
+          <Card elevation={3} sx={{mb:5,borderRadius:3,borderLeft:`6px solid ${theme.palette.success.main}`}}>
             <CardHeader
-              title={`Recent Tests (${newRecords.length})`}
-              titleTypographyProps={{ fontWeight: 600 }}
-              sx={{
-                bgcolor: theme.palette.success.light,
-                cursor: "pointer",
-                "&:hover": { bgcolor: theme.palette.success.lighter }
-              }}
-              onClick={() => setOpenFresh((p) => !p)}
-              action={
-                <IconButton>{openFresh ? <ExpandLess /> : <ExpandMore />}</IconButton>
-              }
+              title={`Recent Tests (${fresh.length})`}
+              titleTypographyProps={{fontWeight:600}}
+              sx={{bgcolor:theme.palette.success.light,cursor:"pointer"}}
+              onClick={()=>setOpen(o=>!o)}
+              action={<IconButton>{openFresh?<ExpandLess/>:<ExpandMore/>}</IconButton>}
             />
-            <Collapse in={openFresh} timeout="auto" unmountOnExit>
+            <Collapse in={openFresh}>
               <CardContent>
-                <Stack spacing={2} divider={<Divider flexItem />}>
-                  {newRecords.map((r) => (
-                    <Stack
-                      key={r.id}
-                      direction={{ xs: "column", sm: "row" }}
-                      spacing={2}
-                      alignItems={{ sm: "center" }}
-                      justifyContent="space-between"
-                    >
-                      <Typography fontWeight={500} flex={1}>
-                        {r.analysis.title}
-                      </Typography>
-                      <Typography fontWeight={600}>
-                        {currencyFormatter.format(r.analysis.price)}
-                      </Typography>
-                      <Chip
-                        label={r.status}
-                        color={statusColor[r.status]}
-                        size="small"
-                        sx={{
-                          textTransform: "capitalize",
-                          minWidth: 100
-                        }}
-                      />
+                <Stack spacing={2} divider={<Divider flexItem/>}>
+                  {fresh.map(r=>(
+                    <Stack key={r.id} direction={{xs:"column",sm:"row"}} spacing={1} alignItems="center">
+                      <Typography flex={1} fontWeight={500}>{r.analysis.title}</Typography>
+                      <Typography fontWeight={600}>{currency.format(r.analysis.price)}</Typography>
+                      <Chip label={r.status} color={statusColor[r.status]} size="small" sx={{minWidth:96}}/>
                     </Stack>
                   ))}
                 </Stack>
@@ -223,106 +92,48 @@ const MyTestsPage = () => {
           </Card>
         )}
 
-        {/* All tests table */}
-        <Card
-          elevation={2}
-          sx={{
-            borderRadius: 4,
-            overflow: "hidden",
-            "& .MuiTablePagination-root": {
-              borderTop: `1px solid ${theme.palette.divider}`
-            }
-          }}
-        >
+        {/* table */}
+        <Paper elevation={2} sx={{borderRadius:3}}>
           <TableContainer>
-            <Table stickyHeader>
+            <Table stickyHeader size="small">
               <TableHead>
                 <TableRow>
-                  {["Test", "Price", "Hospital", "Date", "Status"].map((h) => (
-                    <TableCell
-                      key={h}
-                      sx={{
-                        fontWeight: 600,
-                        bgcolor: theme.palette.grey[100],
-                        position: "sticky",
-                        top: 0,
-                        zIndex: 1,
-                        "&:first-of-type": { pl: 4 },
-                        "&:last-of-type": { pr: 4 }
-                      }}
-                    >
-                      {h}
-                    </TableCell>
+                  {["Test","Hospital","Date","Notes","Result","Status","Reviewed at"].map(h=>(
+                    <HeadCell key={h} align={["Notes","Result"].includes(h)?"left":"center"}>{h}</HeadCell>
                   ))}
                 </TableRow>
               </TableHead>
-
               <TableBody>
-                {records.length ? (
-                  records
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((r) => (
-                      <TableRow
-                        key={r.id}
-                        hover
-                        sx={{
-                          "&:hover": { backgroundColor: theme.palette.action.hover }
-                        }}
-                      >
-                        <TableCell sx={{ pl: 4 }}>{r.analysis.title}</TableCell>
-                        <TableCell>
-                          {currencyFormatter.format(r.analysis.price)}
-                        </TableCell>
-                        <TableCell>{r.hospital?.name || "-"}</TableCell>
-                        <TableCell>
-                          {new Date(r.test_date).toLocaleDateString(undefined, {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric"
-                          })}
-                        </TableCell>
-                        <TableCell sx={{ pr: 4 }}>
-                          <Chip
-                            label={r.status}
-                            color={statusColor[r.status]}
-                            size="small"
-                            sx={{
-                              textTransform: "capitalize",
-                              minWidth: 100
-                            }}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">
-                        No test records found
-                      </Typography>
+                {records.slice(page*rows,page*rows+rows).map(r=>(
+                  <TableRow key={r.id} hover>
+                    <TableCell>{r.analysis.title}</TableCell>
+                    <TableCell align="center">{r.hospital?.name||"-"}</TableCell>
+                    <TableCell align="center">{new Date(r.test_date).toLocaleDateString()}</TableCell>
+                    <TableCell>{r.notes||"-"}</TableCell>
+                    <TableCell>{r.result||"-"}</TableCell>
+                    <TableCell align="center">
+                      <Chip label={r.status} color={statusColor[r.status]} size="small"/>
+                    </TableCell>
+                    <TableCell align="center">
+                      {r.reviewed_at ? new Date(r.reviewed_at).toLocaleString() : "-"}
                     </TableCell>
                   </TableRow>
+                ))}
+                {records.length===0 && (
+                  <TableRow><TableCell colSpan={7} align="center">No records</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
           </TableContainer>
-
-          {records.length > 0 && (
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 25]}
-              component="div"
-              count={records.length}
-              rowsPerPage={rowsPerPage}
-              page={page}
-              onPageChange={handleChangePage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              sx={{ bgcolor: colors.background }}
-            />
-          )}
-        </Card>
+          <TablePagination
+            component="div" rowsPerPageOptions={[5,10,25]}
+            count={records.length} rowsPerPage={rows} page={page}
+            onPageChange={(_,p)=>setPage(p)}
+            onRowsPerPageChange={e=>{setRows(+e.target.value);setPage(0);}}
+          />
+        </Paper>
       </Box>
     </>
   );
 };
-
 export default MyTestsPage;

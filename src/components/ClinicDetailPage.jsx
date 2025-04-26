@@ -1,10 +1,27 @@
+// src/pages/ClinicDetailPage.jsx
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api/axios';
 import {
-  Box, Typography, Button, Avatar, Rating, Divider,
-  Paper, Grid, Chip, Card, CardContent, CardActions,
-  TextField, Fade
+  Box,
+  Typography,
+  Button,
+  Avatar,
+  Rating,
+  Divider,
+  Paper,
+  Grid,
+  Chip,
+  Card,
+  CardContent,
+  Modal,
+  Stack,
+  TextField,
+  Fade,
+  CircularProgress,
+  useTheme,
+  styled
 } from '@mui/material';
 import {
   LocationOn as LocationIcon,
@@ -16,10 +33,11 @@ import {
   Category as CategoryIcon,
   Send as SendIcon
 } from '@mui/icons-material';
-import { styled } from '@mui/material/styles';
+import { format } from 'date-fns';
 
+// Styled components
 const GradientPaper = styled(Paper)(({ theme }) => ({
-  background: 'linear-gradient(135deg, #001A00 0%, #004D00 100%)',
+  background: 'linear-gradient(135deg, #004D00 0%, #001A00 100%)',
   color: theme.palette.common.white,
   borderRadius: theme.shape.borderRadius * 2,
   padding: theme.spacing(3),
@@ -45,38 +63,108 @@ const TestCard = styled(Card)(({ theme }) => ({
   },
 }));
 
+const DetailModal = ({ open, onClose, record }) => {
+  const theme = useTheme();
+  if (!record) return null;
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <Box sx={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: '90%',
+        maxWidth: 360,
+        bgcolor: theme.palette.background.paper,
+        borderRadius: theme.shape.borderRadius * 2,
+        boxShadow: theme.shadows[8],
+        p: theme.spacing(4),
+      }}>
+        <Stack spacing={2}>
+          <Typography variant="h6" sx={{ color: theme.palette.primary.main, fontWeight: 600 }}>
+            {record.analysis?.title || 'Details'}
+          </Typography>
+          <Typography><strong>Price:</strong> {new Intl.NumberFormat(undefined, { style: 'currency', currency: 'KZT' }).format(record.analysis?.price || 0)}</Typography>
+          <Typography><strong>Date:</strong> {record.test_date ? format(new Date(record.test_date), 'dd MMM yyyy') : '-'}</Typography>
+          <Typography>
+            <strong>Status:</strong>{' '}
+            <Chip
+              label={record.status}
+              color={{ pending: 'info', processing: 'warning', completed: 'success', rejected: 'error' }[record.status]}
+              size="small"
+            />
+          </Typography>
+          <Typography><strong>Hospital:</strong> {record.hospital?.name || '-'}</Typography>
+          <Box sx={{ textAlign: 'right' }}>
+            <Button variant="contained" color="primary" onClick={onClose}>
+              Close
+            </Button>
+          </Box>
+        </Stack>
+      </Box>
+    </Modal>
+  );
+};
+
 const ClinicDetailPage = () => {
+  const theme = useTheme();
   const navigate = useNavigate();
   const { id } = useParams();
+
   const [clinic, setClinic] = useState(null);
   const [tests, setTests] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [newReview, setNewReview] = useState({ rating: 0, comment: '' });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const primaryColor = '#001A00';
-  const accentColor = '#00C853';
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
         const [analysisRes, hospitalsRes, reviewsRes] = await Promise.all([
-          api.get('analysis/'),                      // GET /api/analysis/
-          api.get('analysis/hospitals/'),            // GET /api/analysis/hospitals/
-          api.get('analysis/hospital-reviews/', { params: { hospital: id } }) // GET /api/analysis/hospital-reviews/?hospital=ID
+          api.get('/analysis/'),
+          api.get('/analysis/hospitals/'),
+          api.get('/analysis/hospital-reviews/', { params: { hospital: id } })
         ]);
-        const analyses = analysisRes.data;
-        const hospitals = hospitalsRes.data;
-        const rv = reviewsRes.data;
+
+        // Normalize data to arrays
+        const analysesData = analysisRes.data;
+        const hospitalsData = hospitalsRes.data;
+        const reviewsData = reviewsRes.data;
+
+        const analyses = Array.isArray(analysesData)
+          ? analysesData
+          : Array.isArray(analysesData.results)
+            ? analysesData.results
+            : [];
+        const hospitals = Array.isArray(hospitalsData)
+          ? hospitalsData
+          : Array.isArray(hospitalsData.results)
+            ? hospitalsData.results
+            : [];
+        const rv = Array.isArray(reviewsData)
+          ? reviewsData
+          : Array.isArray(reviewsData.results)
+            ? reviewsData.results
+            : [];
+
         const found = hospitals.find(h => h.id === parseInt(id, 10));
         if (found) {
           setClinic(found);
           setTests(analyses.filter(a => a.lab_info?.id === found.id));
           setReviews(rv);
+        } else {
+          setClinic(null);
+          setTests([]);
+          setReviews([]);
         }
       } catch (e) {
         console.error(e);
+        setClinic(null);
+        setTests([]);
+        setReviews([]);
       } finally {
         setLoading(false);
       }
@@ -84,17 +172,24 @@ const ClinicDetailPage = () => {
     load();
   }, [id]);
 
-  const submitReview = async e => {
+  const handleBack = () => navigate('/clinics');
+
+  const submitReview = async (e) => {
     e.preventDefault();
     if (!newReview.rating || !newReview.comment.trim()) return;
     try {
-      await api.post('analysis/hospital-reviews/', {
+      await api.post('/analysis/hospital-reviews/', {
         hospital: id,
         rating: newReview.rating,
         comment: newReview.comment
       });
-      const rres = await api.get('analysis/hospital-reviews/', { params: { hospital: id } });
-      setReviews(rres.data);
+      const rres = await api.get('/analysis/hospital-reviews/', { params: { hospital: id } });
+      const rvData = Array.isArray(rres.data)
+        ? rres.data
+        : Array.isArray(rres.data.results)
+          ? rres.data.results
+          : [];
+      setReviews(rvData);
       setNewReview({ rating: 0, comment: '' });
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 3000);
@@ -103,31 +198,40 @@ const ClinicDetailPage = () => {
     }
   };
 
-  if (loading) return <Typography>Loading...</Typography>;
-  if (!clinic) return (
-    <Box sx={{ p: 4, textAlign: 'center' }}>
-      <Button variant="contained" startIcon={<BackIcon />} onClick={() => navigate('/clinics')} sx={{ backgroundColor: primaryColor }}>
-        Back to clinics list
-      </Button>
-    </Box>
-  );
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: theme.spacing(10) }}>
+        <CircularProgress color="primary" />
+      </Box>
+    );
+  }
+
+  if (!clinic) {
+    return (
+      <Box sx={{ p: 4, textAlign: 'center' }}>
+        <Button variant="contained" startIcon={<BackIcon />} onClick={handleBack}>
+          Back to clinics
+        </Button>
+      </Box>
+    );
+  }
 
   const rvCount = reviews.length;
   const avg = rvCount ? (reviews.reduce((sum, r) => sum + r.rating, 0) / rvCount).toFixed(1) : '0.0';
 
   return (
     <Box sx={{ maxWidth: 1200, m: '0 auto', p: { xs: 2, sm: 3 }, minHeight: '100vh' }}>
-      <Button variant="text" startIcon={<BackIcon />} onClick={() => navigate('/clinics')} sx={{ mb: 2, color: primaryColor, textTransform: 'none', fontWeight: 500 }}>
+      <Button variant="text" startIcon={<BackIcon />} onClick={handleBack} sx={{ mb: 2, textTransform: 'none' }}>
         Back to clinics
       </Button>
 
       <GradientPaper>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+        <Stack direction="row" alignItems="center" spacing={3} flexWrap="wrap">
           <Avatar src={clinic.photo} sx={{ width: 80, height: 80, bgcolor: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.3)' }}>
             <ClinicIcon sx={{ fontSize: 40 }} />
           </Avatar>
           <Box>
-            <Typography variant="h3" sx={{ fontWeight: 700, color: 'white' }}>{clinic.name}</Typography>
+            <Typography variant="h3" sx={{ fontWeight: 700 }}>{clinic.name}</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
               <Rating
                 value={parseFloat(avg)}
@@ -136,72 +240,34 @@ const ClinicDetailPage = () => {
                 icon={<StarIcon sx={{ color: '#FFD700' }} />}
                 emptyIcon={<StarBorderIcon sx={{ color: 'rgba(255,255,255,0.5)' }} />}
               />
-              <Typography sx={{ ml: 1.5, color: 'rgba(255,255,255,0.9)' }}>{avg} ({rvCount})</Typography>
+              <Typography sx={{ ml: 1.5 }}>{avg} ({rvCount})</Typography>
             </Box>
           </Box>
-        </Box>
+        </Stack>
       </GradientPaper>
 
-      {/* Address & Hours as Card Grid */}
-      <Paper
-        elevation={0}
-        sx={{
-          p: { xs: 2, sm: 3 },
-          mb: 3,
-          borderRadius: 3
-        }}
-      >
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 700,
-            mb: 2,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1
-          }}
-        >
+      {/* Address & Hours */}
+      <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3, borderRadius: 3 }}>
+        <Typography variant="h5" sx={{ fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
           <LocationIcon color="primary" /> Address & Hours
         </Typography>
-
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6} md={4}>
-            <Card
-              sx={{
-                borderRadius: 2,
-                boxShadow: '0px 1px 5px rgba(0,0,0,0.05)'
-              }}
-            >
+            <Card sx={{ borderRadius: 2, boxShadow: '0px 1px 5px rgba(0,0,0,0.05)' }}>
               <CardContent>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ fontWeight: 600, mb: 1 }}
-                >
-                  Address
-                </Typography>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Address</Typography>
                 <Typography>{clinic.address}</Typography>
-
                 <Divider sx={{ my: 2 }} />
-
-                <Typography
-                  variant="subtitle1"
-                  sx={{ fontWeight: 600, mb: 1 }}
-                >
-                  Working Hours
-                </Typography>
-                <Typography sx={{ fontStyle: 'italic' }}>
-                  {clinic.working_time}
-                </Typography>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Working Hours</Typography>
+                <Typography sx={{ fontStyle: 'italic' }}>{clinic.working_time}</Typography>
               </CardContent>
             </Card>
           </Grid>
         </Grid>
       </Paper>
 
-
-
       {/* Available Tests */}
-      <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, mb: 3, borderRadius: 3 }}>
+      <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3, borderRadius: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
           <ClinicIcon color="primary" /> Available Tests
         </Typography>
@@ -212,7 +278,7 @@ const ClinicDetailPage = () => {
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                     <Typography sx={{ fontWeight: 600 }}>{test.title}</Typography>
-                    <Typography sx={{ fontWeight: 700, color: primaryColor }}>
+                    <Typography sx={{ fontWeight: 700, color: theme.palette.primary.main }}>
                       {parseFloat(test.price).toLocaleString()} ₸
                     </Typography>
                   </Box>
@@ -227,14 +293,14 @@ const ClinicDetailPage = () => {
         </Grid>
       </Paper>
 
-      {/* Reviews */}
-      <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
+      {/* Patient Reviews */}
+      <Paper sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
           <StarIcon color="primary" /> Patient Reviews
         </Typography>
 
         {/* New Review Form */}
-        <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.02)' }}>
+        <Paper sx={{ p: 2, mb: 3, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.02)' }}>
           <Typography sx={{ mb: 2, fontWeight: 600 }}>Leave Your Review</Typography>
           <Box component="form" onSubmit={submitReview}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -263,18 +329,13 @@ const ClinicDetailPage = () => {
                 variant="contained"
                 startIcon={<SendIcon />}
                 disabled={!newReview.rating || !newReview.comment.trim()}
-                sx={{
-                  backgroundColor: primaryColor,
-                  '&:hover': { backgroundColor: '#003300' },
-                  textTransform: 'none',
-                  fontWeight: 500,
-                }}
+                sx={{ textTransform: 'none', fontWeight: 500 }}
               >
                 Submit Review
               </Button>
             </Box>
             <Fade in={submitted}>
-              <Typography sx={{ mt: 1, color: accentColor, fontWeight: 500, textAlign: 'center' }}>
+              <Typography sx={{ mt: 1, color: theme.palette.success.main, fontWeight: 500, textAlign: 'center' }}>
                 Thank you! Your review has been submitted.
               </Typography>
             </Fade>
@@ -284,11 +345,11 @@ const ClinicDetailPage = () => {
         {/* Existing Reviews */}
         {reviews.length > 0 ? (
           reviews.map(review => (
-            <ReviewCard key={review.id}>
+            <ReviewCard key={review.id} elevation={2}>
               <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Avatar sx={{ bgcolor: '#E8F5E9', mr: 2 }}>
+                    <Avatar sx={{ bgcolor: theme.palette.secondary.light, mr: 2 }}>
                       {review.user_email.charAt(0).toUpperCase()}
                     </Avatar>
                     <Box>

@@ -164,9 +164,11 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
   const [resetSuccess, setResetSuccess] = useState(false);
 
   // Verification states
-  const [verificationCode, setVerificationCode] = useState("");
   const [verificationError, setVerificationError] = useState("");
   const [verificationSuccess, setVerificationSuccess] = useState(false);
+
+  // API base URL
+  const API_BASE_URL = "http://localhost:8000";
 
   // Effects
   useEffect(() => {
@@ -222,30 +224,62 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     }
   };
 
-  // API call handlers
-  const makeApiCall = async (url, method, body, errorMessage) => {
+  // Enhanced API call handler with CORS and error handling
+  const makeApiCall = async (endpoint, method, body, errorMessage) => {
+    setIsLoading(true);
+    setError("");
+    
     try {
-      const response = await fetch(url, {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(body),
+        credentials: 'include', // For cookies if needed
       });
-      if (!response.ok) throw new Error(errorMessage);
-      return await response.json();
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle specific backend errors
+        if (data.detail) {
+          throw new Error(data.detail);
+        } else if (data.email) {
+          throw new Error(data.email[0]);
+        } else if (data.password) {
+          throw new Error(data.password[0]);
+        } else if (data.non_field_errors) {
+          throw new Error(data.non_field_errors[0]);
+        } else {
+          throw new Error(errorMessage || "Request failed");
+        }
+      }
+
+      return data;
     } catch (error) {
-      throw error;
+      console.error("API Error:", error);
+      
+      // Handle specific error cases
+      if (error.message.includes("Failed to fetch")) {
+        throw new Error("Network error. Please check your connection.");
+      } else if (error.message.includes("JSON")) {
+        throw new Error("Invalid server response");
+      } else {
+        throw error;
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Authentication handlers
-  const handleAuth = async (url, body, isRegister = false) => {
+  const handleAuth = async (endpoint, body, isRegister = false) => {
     if (!validateForm()) return;
-    setIsLoading(true);
-    setError("");
 
     try {
       const data = await makeApiCall(
-        url,
+        endpoint,
         "POST",
         body,
         isRegister ? "Registration failed" : "Authentication failed"
@@ -262,26 +296,23 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
         onClose();
       }
     } catch (err) {
-      setError(
-        isRegister
-          ? "Registration failed. Please try again."
-          : "Authentication failed. Please check your credentials."
+      setError(err.message || 
+        (isRegister 
+          ? "Registration failed. Please try again." 
+          : "Authentication failed. Please check your credentials.")
       );
-      console.error(`${isRegister ? "Registration" : "Login"} error:`, err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleSignIn = () =>
-    handleAuth("http://localhost:8000/api/auth/login/", {
+    handleAuth("/api/auth/login/", {
       email: formData.email,
       password: formData.password,
     });
 
   const handleSignUp = () =>
     handleAuth(
-      "http://localhost:8000/api/auth/register/", 
+      "/api/auth/register/", 
       {
         email: formData.email,
         password: formData.password,
@@ -292,12 +323,9 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
 
   // Verification handlers
   const handleVerifyCode = async (code) => {
-    setIsLoading(true);
-    setVerificationError("");
-
     try {
       await makeApiCall(
-        "http://localhost:8000/api/auth/verify/",
+        "/api/auth/verify/",
         "POST",
         { email: formData.email, code },
         "Verification failed"
@@ -305,26 +333,20 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
       
       setVerificationSuccess(true);
       setTimeout(() => {
-        handleAuth("http://localhost:8000/api/auth/login/", {
+        handleAuth("/api/auth/login/", {
           email: formData.email,
           password: formData.password,
         });
       }, 1500);
     } catch (error) {
-      setVerificationError("Invalid verification code. Please try again.");
-      console.error("Verification error:", error);
-    } finally {
-      setIsLoading(false);
+      setVerificationError(error.message || "Invalid verification code. Please try again.");
     }
   };
 
   const handleResendCode = async () => {
-    setIsLoading(true);
-    setVerificationError("");
-
     try {
       await makeApiCall(
-        "http://localhost:8000/api/auth/resend-code/",
+        "/api/auth/resend-code/",
         "POST",
         { email: formData.email },
         "Failed to resend code"
@@ -333,9 +355,7 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
       setVerificationError("");
       alert("New verification code sent to your email!");
     } catch (error) {
-      setVerificationError("Failed to resend code. Please try again.");
-    } finally {
-      setIsLoading(false);
+      setVerificationError(error.message || "Failed to resend code. Please try again.");
     }
   };
 
@@ -346,13 +366,10 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
       setResetMessageType("error");
       return;
     }
-    
-    setIsLoading(true);
-    setResetMessage("");
 
     try {
       await makeApiCall(
-        "http://localhost:8000/password_reset_request/",
+        "/password_reset_request/",
         "POST",
         { email: resetEmail },
         "Failed to send reset link"
@@ -361,11 +378,8 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
       setResetMessage("Reset instructions sent! Please check your email.");
       setResetMessageType("success");
     } catch (error) {
-      setResetMessage("Failed to send reset link. Please try again.");
+      setResetMessage(error.message || "Failed to send reset link. Please try again.");
       setResetMessageType("error");
-      console.error("Reset request error:", error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -386,12 +400,9 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
       return;
     }
 
-    setIsLoading(true);
-    setResetFormMessage("");
-
     try {
       await makeApiCall(
-        "http://localhost:8000/password_reset_confirm/",
+        "/password_reset_confirm/",
         "POST",
         { token: resetToken, newPassword },
         "Failed to reset password"
@@ -409,26 +420,19 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
         }
       }, 3000);
     } catch (error) {
-      setResetFormMessage("Failed to reset password. The link may be expired.");
+      setResetFormMessage(error.message || "Failed to reset password. The link may be expired.");
       setResetFormMessageType("error");
-      console.error("Password reset error:", error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   // Google auth handlers
   const handleGoogleSuccess = async (response) => {
-    setIsLoading(true);
-    setError("");
-    
     try {
       const token = response.credential;
       const decoded = jwtDecode(token);
-      console.log("Google user:", decoded);
       
       const data = await makeApiCall(
-        "http://localhost:8000/api/auth/google/",
+        "/api/auth/google/",
         "POST",
         { token },
         "Google authentication failed"
@@ -439,10 +443,7 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
       onLogin(data.access_token);
       onClose();
     } catch (error) {
-      setError("Google authentication failed. Please try again.");
-      console.error("Google auth error:", error);
-    } finally {
-      setIsLoading(false);
+      setError(error.message || "Google authentication failed. Please try again.");
     }
   };
 
