@@ -6,7 +6,6 @@ import {
   CardContent,
   Rating,
   Divider,
-  Chip,
   IconButton,
   CircularProgress,
   Button,
@@ -29,39 +28,47 @@ const MyRevProfile = () => {
   const [editComment, setEditComment] = useState('');
   const [editRating, setEditRating] = useState(0);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  const [deleteConfirm, setDeleteConfirm] = useState({ 
+    open: false, 
+    reviewId: null,
+    clinicName: ''
+  });
 
-  // Проверяем, можно ли редактировать отзыв (в течение 24 часов)
+  // Проверка возможности редактирования (24 часа)
   const canEditReview = useCallback((reviewDate) => {
     const now = new Date();
     const reviewTime = new Date(reviewDate);
-    const hoursDiff = (now - reviewTime) / (1000 * 60 * 60);
-    return hoursDiff < 24;
+    return (now - reviewTime) < 24 * 60 * 60 * 1000;
   }, []);
 
-  // Показ уведомлений
-  const showSnackbar = useCallback((message, severity) => {
+  // Универсальный показ уведомлений
+  const showSnackbar = useCallback((message, severity = 'info') => {
+    console.log(`[Snackbar] ${severity}: ${message}`);
     setSnackbar({ open: true, message, severity });
   }, []);
 
-  // Загрузка отзывов с бэкенда
+  // Загрузка отзывов с обработкой ошибок
   useEffect(() => {
-    const abortController = new AbortController();
+    const controller = new AbortController();
 
     const fetchReviews = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/reviews/my/', {
-          signal: abortController.signal
+        console.log('[Fetch] Loading reviews...');
+        const response = await api.get('/analysis/myreviews/', {
+          signal: controller.signal
         });
 
-        if (response.data && Array.isArray(response.data)) {
-          setReviews(response.data);
-        } else {
-          throw new Error('Invalid data format received');
-        }
+        // Нормализация данных (для разных форматов ответа)
+        const data = normalizeReviews(response.data);
+        console.log(`[Fetch] Loaded ${data.length} reviews`, data);
+        
+        setReviews(data);
+        setError(null);
       } catch (err) {
-        if (!abortController.signal.aborted) {
-          setError(err.message);
+        if (!controller.signal.aborted) {
+          console.error('[Fetch] Error:', err);
+          setError(err.message || 'Failed to load reviews');
           showSnackbar('Failed to load reviews', 'error');
         }
       } finally {
@@ -69,69 +76,122 @@ const MyRevProfile = () => {
       }
     };
 
-    fetchReviews();
+    // Вспомогательная функция для нормализации данных
+    const normalizeReviews = (apiData) => {
+      if (!apiData) return [];
+      
+      // Обработка разных форматов ответа API
+      const rawData = Array.isArray(apiData) ? apiData : apiData.results || [];
+      
+      return rawData.map(review => ({
+        ...review,
+        id: review.id, // Сохраняем оригинальный формат ID
+        created_at: review.created_at || review.date || new Date().toISOString()
+      }));
+    };
 
-    return () => abortController.abort();
+    fetchReviews();
+    return () => controller.abort();
   }, [showSnackbar]);
 
+  // Удаление отзыва с подтверждением и обработкой ошибок
   const handleDeleteReview = async (id) => {
-    try {
-      await api.delete(`/reviews/${id}/`);
-      setReviews(prev => prev.filter(review => review.id !== id));
-      showSnackbar('Review deleted successfully', 'success');
-    } catch (err) {
-      showSnackbar('Failed to delete review', 'error');
-    }
-  };
-
-  const handleEditClick = (review) => {
-    if (!canEditReview(review.created_at)) {
-      showSnackbar('You can only edit reviews within 24 hours of posting', 'warning');
+    if (!id) {
+      console.error('[Delete] No ID provided');
+      showSnackbar('Error: no review ID', 'error');
       return;
     }
-    setEditingReview(review);
-    setEditComment(review.comment);
-    setEditRating(review.rating);
-  };
-
-  const handleEditSubmit = async () => {
-    if (!editingReview) return;
 
     try {
+      // ID может быть строкой или числом - проверим оба варианта в логах
+      console.log(`[Delete] Starting for ID: ${id} (${typeof id})`);
+      
+      // Сначала запрос к API - только после успешного запроса обновим UI
+      const response = await api.delete(`/analysis/myreviews/${id}/`);
+      console.log('[Delete] Server response:', response);
+
+      // После успешного ответа от сервера обновляем UI
+      setReviews(prev => {
+        const updatedReviews = prev.filter(review => {
+          // Проверяем как строковое, так и числовое значение
+          return String(review.id) !== String(id);
+        });
+        console.log('[Delete] UI update after successful API call:', updatedReviews);
+        return updatedReviews;
+      });
+
+      // Подтверждающее уведомление
+      showSnackbar('Review deleted successfully', 'success');
+    } catch (err) {
+      console.error('[Delete] Error:', err);
+      
+      // Получаем более детальную информацию об ошибке
+      console.log('[Delete] Error response:', err.response);
+      const errorMessage = err.response?.data?.message || err.response?.data?.detail || 'Failed to delete review';
+      showSnackbar(errorMessage, 'error');
+    } finally {
+      setDeleteConfirm({ open: false, reviewId: null, clinicName: '' });
+    }
+  };
+
+  // Редактирование отзыва
+  const handleEditSubmit = async () => {
+    if (!editingReview) {
+      console.warn('[Edit] No review selected');
+      return;
+    }
+
+    try {
+      if (!canEditReview(editingReview.created_at)) {
+        console.warn('[Edit] Time expired for review:', editingReview.id);
+        showSnackbar('Editing time has expired (24 hours)', 'error');
+        setEditingReview(null);
+        return;
+      }
+
       const updatedReview = {
         ...editingReview,
         comment: editComment,
         rating: editRating
       };
       
-      const response = await api.put(`/reviews/${editingReview.id}/`, updatedReview);
+      console.log('[Edit] Saving:', updatedReview);
+      const { data } = await api.put(
+        `/analysis/myreviews/${editingReview.id}/`, 
+        updatedReview
+      );
       
-      setReviews(reviews.map(review => 
-        review.id === editingReview.id ? response.data : review
+      // Обновляем конкретный отзыв в состоянии
+      setReviews(prev => prev.map(review => 
+        String(review.id) === String(editingReview.id) ? { ...data, id: data.id } : review
       ));
       
       setEditingReview(null);
       showSnackbar('Review updated successfully', 'success');
     } catch (err) {
-      showSnackbar('Failed to update review', 'error');
+      console.error('[Edit] Error:', err);
+      const errorMessage = err.response?.data?.message || err.response?.data?.detail || 'Failed to update review';
+      showSnackbar(errorMessage, 'error');
     }
   };
 
-  const handleCloseSnackbar = () => {
-    setSnackbar(prev => ({ ...prev, open: false }));
-  };
+  // Форматирование даты с обработкой ошибок
+  const formatDate = useCallback((dateString) => {
+    try {
+      return new Date(dateString).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      console.warn('[Date] Invalid date:', dateString);
+      return 'Unknown date';
+    }
+  }, []);
 
-  const formatDate = (dateString) => {
-    const options = { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    };
-    return new Date(dateString).toLocaleString('en-US', options);
-  };
-
+  // Состояние загрузки
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -140,6 +200,7 @@ const MyRevProfile = () => {
     );
   }
 
+  // Состояние ошибки
   if (error) {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -155,6 +216,7 @@ const MyRevProfile = () => {
     );
   }
 
+  // Основной интерфейс
   return (
     <Box sx={{ 
       p: 2,
@@ -162,16 +224,7 @@ const MyRevProfile = () => {
       display: 'flex',
       flexDirection: 'column'
     }}>
-      <Typography 
-        variant="h6" 
-        sx={{ 
-          mb: 2,
-          color: '#001A00',
-          fontWeight: 'bold',
-          display: 'flex',
-          alignItems: 'center'
-        }}
-      >
+      <Typography variant="h6" sx={{ mb: 2, color: '#001A00', fontWeight: 'bold' }}>
         <Star sx={{ mr: 1, color: '#ffc107' }} />
         My Reviews
       </Typography>
@@ -191,223 +244,62 @@ const MyRevProfile = () => {
             Your feedback helps others make better healthcare choices
           </Typography>
         </Box>
-        ) : (
-        <Box sx={{ 
-          flex: 1,
-          overflow: 'auto',
-          pr: 1,
-          '&::-webkit-scrollbar': {
-            width: '4px',
-          },
-          '&::-webkit-scrollbar-thumb': {
-            backgroundColor: '#bdbdbd',
-            borderRadius: '2px',
-          }
-        }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {reviews.map((review, index) => (
-              <Card 
-                key={review.id || `review-${index}`}
-                sx={{ 
-                  borderRadius: 1,
-                  borderLeft: '3px solid #4caf50',
-                  boxShadow: '0 1px 3px rgba(0, 30, 0, 0.1)',
-                  mb: 1
-                }}
-              >
-                <CardContent sx={{ p: 1.5 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography 
-                        variant="subtitle2"
-                        sx={{ 
-                          fontWeight: 'bold',
-                          color: '#001A00',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          fontSize: '0.9rem'
-                        }}
-                      >
-                        {review.doctor_name || 'Unknown doctor'}
-                      </Typography>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          color: '#004d00',
-                          mb: 0.5,
-                          fontSize: '0.75rem'
-                        }}
-                      >
-                        {review.doctor_specialty || 'General practice'}
-                      </Typography>
-                      {review.clinic_name && (
-                        <Chip 
-                          label={review.clinic_name} 
-                          size="small" 
-                          sx={{ 
-                            bgcolor: '#e8f5e9', 
-                            color: '#004d00',
-                            mb: 0.5,
-                            height: '22px',
-                            fontSize: '0.65rem'
-                          }} 
-                        />
-                      )}
-                    </Box>
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center', ml: 0.5 }}>
-                      <Rating
-                        value={review.rating || 0}
-                        readOnly
-                        precision={0.5}
-                        size="small"
-                        icon={<Star fontSize="small" sx={{ color: '#ffc107' }} />}
-                        emptyIcon={<StarBorder fontSize="small" sx={{ color: '#ffc107' }} />}
-                      />
-                    </Box>
-                  </Box>
-
-                  {review.comment && (
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        mt: 0.5,
-                        color: '#333',
-                        fontSize: '0.8rem',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                        lineHeight: '1.3'
-                      }}
-                    >
-                      "{review.comment}"
-                    </Typography>
-                  )}
-
-                  <Divider sx={{ my: 0.5 }} />
-
-                  <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <Typography 
-                      variant="caption" 
-                      sx={{ 
-                        color: '#004d00',
-                        fontSize: '0.65rem'
-                      }}
-                    >
-                      Posted {formatDate(review.created_at)}
-                      {!canEditReview(review.created_at) && (
-                        <Typography component="span" variant="caption" sx={{ color: '#d32f2f', ml: 0.5, fontSize: '0.65rem' }}>
-                          (editing expired)
-                        </Typography>
-                      )}
-                    </Typography>
-                    
-                    <Box>
-                      <IconButton 
-                        onClick={() => handleEditClick(review)}
-                        sx={{ 
-                          color: canEditReview(review.created_at) ? '#004d00' : '#9e9e9e',
-                          p: 0.3,
-                          '& svg': { fontSize: '0.9rem' }
-                        }}
-                        disabled={!canEditReview(review.created_at)}
-                      >
-                        <Edit />
-                      </IconButton>
-                      <IconButton 
-                        onClick={() => handleDeleteReview(review.id)}
-                        sx={{ 
-                          color: '#d32f2f',
-                          p: 0.3,
-                          '& svg': { fontSize: '0.9rem' }
-                        }}
-                      >
-                        <Delete />
-                      </IconButton>
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            ))}
-          </Box>
+      ) : (
+        <Box sx={{ flex: 1, overflow: 'auto', pr: 1 }}>
+          {reviews.map((review) => (
+            <ReviewCard
+              key={`review-${review.id}`} // Явный префикс для ключа
+              review={review}
+              formatDate={formatDate}
+              canEdit={canEditReview(review.created_at)}
+              onEditClick={() => {
+                console.log('[UI] Edit clicked for:', review.id);
+                if (canEditReview(review.created_at)) {
+                  setEditingReview(review);
+                  setEditComment(review.comment);
+                  setEditRating(review.rating);
+                }
+              }}
+              onDeleteClick={() => {
+                console.log('[UI] Delete clicked for:', review.id);
+                setDeleteConfirm({
+                  open: true,
+                  reviewId: review.id,
+                  clinicName: review.clinic_name
+                });
+              }}
+            />
+          ))}
         </Box>
       )}
 
-      {/* Диалог редактирования */}
-      <Dialog 
-        open={Boolean(editingReview)} 
-        onClose={() => setEditingReview(null)} 
-        fullWidth 
-        maxWidth="sm"
-        PaperProps={{
-          sx: {
-            borderRadius: 1,
-            position: 'relative',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: '4px',
-              backgroundColor: '#4caf50',
-              borderTopLeftRadius: '4px',
-              borderBottomLeftRadius: '4px'
-            }
-          }
-        }}
-      >
-        <DialogTitle sx={{ pl: 3 }}>Edit Review</DialogTitle>
-        <DialogContent sx={{ pl: 3 }}>
-          <Rating
-            value={editRating}
-            onChange={(_, newValue) => setEditRating(newValue)}
-            precision={0.5}
-            sx={{ my: 1 }}
-            icon={<Star sx={{ color: '#ffc107' }} />}
-            emptyIcon={<StarBorder sx={{ color: '#ffc107' }} />}
-          />
-          <TextField
-            multiline
-            rows={4}
-            fullWidth
-            variant="outlined"
-            value={editComment}
-            onChange={(e) => setEditComment(e.target.value)}
-            sx={{ mt: 1 }}
-          />
-        </DialogContent>
-        <DialogActions sx={{ pl: 3 }}>
-          <Button onClick={() => setEditingReview(null)}>Cancel</Button>
-          <Button 
-            onClick={handleEditSubmit}
-            variant="contained"
-            sx={{ 
-              bgcolor: '#004d00', 
-              '&:hover': { bgcolor: '#003300' },
-              ml: 1
-            }}
-          >
-            Save Changes
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Диалоговые окна */}
+      <EditDialog
+        open={Boolean(editingReview)}
+        onClose={() => setEditingReview(null)}
+        editComment={editComment}
+        editRating={editRating}
+        onCommentChange={setEditComment}
+        onRatingChange={setEditRating}
+        onSubmit={handleEditSubmit}
+      />
+
+      <ConfirmDeleteDialog
+        open={deleteConfirm.open}
+        clinicName={deleteConfirm.clinicName}
+        onClose={() => setDeleteConfirm({ open: false, reviewId: null, clinicName: '' })}
+        onConfirm={() => handleDeleteReview(deleteConfirm.reviewId)}
+      />
 
       {/* Уведомления */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Alert 
-          onClose={handleCloseSnackbar} 
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
           severity={snackbar.severity}
           sx={{ width: '100%' }}
         >
@@ -418,4 +310,128 @@ const MyRevProfile = () => {
   );
 };
 
-export default MyRevProfile;
+// Оптимизированный компонент карточки отзыва
+const ReviewCard = React.memo(({ review, formatDate, canEdit, onEditClick, onDeleteClick }) => {
+  console.log(`[Render] ReviewCard ${review.id}`);
+  
+  return (
+    <Card sx={{ mb: 2, borderLeft: '3px solid #4caf50', boxShadow: 1 }}>
+      <CardContent sx={{ p: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+              {review.clinic_name || 'Unknown Clinic'}
+            </Typography>
+            {review.comment && (
+              <Typography variant="body2" sx={{ mt: 1, color: '#555' }}>
+                "{review.comment}"
+              </Typography>
+            )}
+          </Box>
+          <Rating
+            value={review.rating}
+            readOnly
+            precision={0.5}
+            size="small"
+          />
+        </Box>
+
+        <Divider sx={{ my: 1.5 }} />
+
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="caption" sx={{ color: '#004d00' }}>
+            Posted {formatDate(review.created_at)}
+            {!canEdit && (
+              <Typography component="span" variant="caption" sx={{ color: '#d32f2f', ml: 1 }}>
+                (editing expired)
+              </Typography>
+            )}
+          </Typography>
+          
+          <Box>
+            <IconButton 
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditClick();
+              }}
+              disabled={!canEdit}
+              sx={{ color: canEdit ? '#004d00' : '#9e9e9e' }}
+            >
+              <Edit fontSize="small" />
+            </IconButton>
+            <IconButton 
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteClick();
+              }}
+              sx={{ color: '#d32f2f' }}
+            >
+              <Delete fontSize="small" />
+            </IconButton>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+});
+
+// Компонент редактирования
+const EditDialog = React.memo(({ open, onClose, editComment, editRating, onCommentChange, onRatingChange, onSubmit }) => {
+  console.log('[Render] EditDialog');
+  
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Edit Review</DialogTitle>
+      <DialogContent>
+        <Rating
+          value={editRating}
+          onChange={(_, newValue) => onRatingChange(newValue)}
+          precision={0.5}
+          sx={{ my: 2 }}
+        />
+        <TextField
+          multiline
+          rows={4}
+          fullWidth
+          value={editComment}
+          onChange={(e) => onCommentChange(e.target.value)}
+          sx={{ mt: 1 }}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onSubmit} variant="contained" color="primary">
+          Save Changes
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+});
+
+// Компонент подтверждения удаления
+const ConfirmDeleteDialog = React.memo(({ open, clinicName, onClose, onConfirm }) => {
+  console.log('[Render] ConfirmDeleteDialog');
+  
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <DialogTitle>Confirm Delete</DialogTitle>
+      <DialogContent>
+        <Typography>
+          Are you sure you want to delete your review for {clinicName || 'this clinic'}?
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button 
+          onClick={onConfirm} 
+          color="error" 
+          variant="contained"
+        >
+          Delete
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+});
+
+export default MyRevProfile; 

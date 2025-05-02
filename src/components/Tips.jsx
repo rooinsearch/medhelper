@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import api from '../api/axios';
 import { 
   Card, 
   Typography, 
   Box, 
   Button, 
   Collapse, 
-  Skeleton,
   useMediaQuery,
   useTheme,
   IconButton
@@ -14,305 +14,231 @@ import {
 import { 
   ExpandMore, 
   LightbulbOutlined, 
-  Update as UpdateIcon, 
   Close 
 } from "@mui/icons-material";
-import axios from "axios";
-
-const API_URL = 'http://localhost:8000/api';
-const api = axios.create({ 
-  baseURL: API_URL,
-  timeout: 5000,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  }
-});
 
 export default function HomepageHealthTips() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
   
   const [expandedTip, setExpandedTip] = useState(null);
-  const [tips, setTips] = useState([]);
-  const [latestArticles, setLatestArticles] = useState([]);
-  const [loading, setLoading] = useState({ tips: true, articles: true });
-  const [error, setError] = useState(null);
   const [isExpandedMobile, setIsExpandedMobile] = useState(false);
   const navigate = useNavigate();
+  
+  const [tips, setTips] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchLatestTips = async () => {
       try {
-        setLoading({ tips: true, articles: true });
-        const [tipsResponse, latestArticlesResponse] = await Promise.all([
-          api.get('/health-tips/').catch(e => ({ data: [] })),
-          // Запрос последних добавленных статей
-          api.get('/healthtips/articles/?limit=3&ordering=-created_at').catch(e => ({ data: [] }))
-          // Альтернативный вариант, если на сервере есть специальный эндпоинт
-          // api.get('/healthtips/articles/latest/').catch(e => ({ data: [] }))
-        ]);
-
-        setTips(tipsResponse.data.slice(0, isMobile ? 2 : 3));
-        setLatestArticles(latestArticlesResponse.data.slice(0, isMobile ? 1 : 2));
+        const { data } = await api.get('/healthtips/articles/', {
+          params: { 
+            page: 1,
+            page_size: 4,
+            ordering: '-created_at'
+          }
+        });
+        
+        const formattedTips = (data.results || data).map(article => ({
+          id: article.id,
+          title: article.title,
+          short_description: article.excerpt || article.short_description,
+          full_description: article.content,
+          slug: article.slug
+        }));
+        
+        setTips(formattedTips);
       } catch (err) {
-        console.error('Error:', err);
-        setError('Failed to load data');
+        console.error('Error loading latest tips:', err);
       } finally {
-        setLoading({ tips: false, articles: false });
+        setLoading(false);
       }
     };
+    
+    fetchLatestTips();
+  }, []);
 
-    fetchData();
-  }, [isMobile]);
+  const getWidgetStyles = () => {
+    return {
+      backgroundColor: "rgba(63, 78, 61, 0.95)",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+      position: isMobile ? "fixed" : "absolute",
+      bottom: isMobile ? 0 : undefined,
+      left: isMobile ? 0 : "20px",
+      right: isMobile ? 0 : undefined,
+      top: isMobile ? undefined : "0px",
+      width: isMobile ? "100%" : "280px",
+      height: isMobile ? (isExpandedMobile ? "90vh" : "40vh") : "550px",
+      transition: isMobile ? "height 0.3s ease" : "none"
+    };
+  };
 
-  const toggleTipExpansion = (tipId) => {
+  const handleTipToggle = (tipId) => {
     setExpandedTip(expandedTip === tipId ? null : tipId);
   };
 
-  const getWidgetStyles = () => {
-    if (isMobile) {
-      return {
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        width: "100%",
-        maxHeight: isExpandedMobile ? "90vh" : "50vh",
-        height: "auto",
-        zIndex: 1300,
-        borderRadius: "16px 16px 0 0",
-        boxShadow: "0 -4px 12px rgba(0,0,0,0.2)",
-        transform: `translateY(${isExpandedMobile ? '0' : 'calc(100% - 56px)'})`,
-        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
-      };
-    }
-    
-    if (isTablet) {
-      return {
-        position: "absolute",
-        right: "20px",
-        top: "20px",
-        width: "250px",
-        height: "calc(100vh - 40px)",
-        zIndex: 1000
-      };
-    }
-    
-    return {
-      position: "absolute",
-      left: "20px",
-      top: "1px",
-      width: "280px",
-      height: "calc(105vh - 40px)",
-      zIndex: 1000
-    };
+  const handleSeeMore = () => {
+    navigate("/health-tips");
   };
 
-  if (error && !tips.length && !latestArticles.length) {
-    return (
-      <Box sx={{ p: 2, textAlign: 'center' }}>
-        <Typography color="error">{error}</Typography>
-        <Button onClick={() => window.location.reload()} sx={{ mt: 1 }} variant="contained">
-          Retry
-        </Button>
-      </Box>
-    );
-  }
-
   return (
-    <Box sx={{
-      ...getWidgetStyles(),
-      overflowY: "auto",
-      scrollbarWidth: "none",
-      "&::-webkit-scrollbar": { display: "none" }
-    }}>
+    <Box sx={getWidgetStyles()}>
+      {/* Header */}
       <Box sx={{
-        backgroundColor: "rgba(63, 78, 61, 0.95)",
-        borderRadius: isMobile ? "16px 16px 0 0" : "8px",
-        p: isMobile ? 1 : 2,
-        height: "100%",
-        position: "relative"
+        p: 2,
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        borderBottom: "1px solid rgba(255,255,255,0.1)"
       }}>
+        <Typography variant="h6" color="white" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <LightbulbOutlined fontSize="medium" />
+          Health Tips
+        </Typography>
+        
         {isMobile && (
-          <Box sx={{
-            position: "sticky",
-            top: 0,
-            bgcolor: "rgba(63, 78, 61, 0.95)",
-            zIndex: 1,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            p: 1,
-            borderBottom: "1px solid rgba(255,255,255,0.1)"
-          }}>
-            <Typography variant="subtitle1" color="white" sx={{ display: "flex", alignItems: "center" }}>
-              <LightbulbOutlined sx={{ mr: 1, fontSize: "1.2rem" }} />
-              Health Tips
-            </Typography>
-            <IconButton 
-              onClick={() => setIsExpandedMobile(!isExpandedMobile)}
-              sx={{ color: "white" }}
-            >
-              {isExpandedMobile ? <Close /> : <ExpandMore />}
-            </IconButton>
-          </Box>
+          <IconButton 
+            onClick={() => setIsExpandedMobile(!isExpandedMobile)}
+            sx={{ color: "white" }}
+          >
+            {isExpandedMobile ? <Close /> : <ExpandMore />}
+          </IconButton>
         )}
+      </Box>
 
-        {!isMobile && (
-          <Typography variant="h6" fontWeight="bold" textAlign="center" mb={2} color="white"
-            sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
-            <LightbulbOutlined fontSize="medium" sx={{ color: "white" }} />
-            Weekly Health Tips
-          </Typography>
-        )}
+      {/* Scrollable Content */}
+      <Box sx={{
+        flex: 1,
+        overflowY: "auto",
+        p: 2,
+        minHeight: 0, // Важно для правильной работы скролла
+        '&::-webkit-scrollbar': {
+          width: '6px',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          backgroundColor: 'rgba(255,255,255,0.3)',
+          borderRadius: '3px',
+        }
+      }}>
+        <Box sx={{ 
+          display: "flex",
+          flexDirection: "column",
+          gap: 2
+        }}>
+          {loading ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <Card 
+                key={`skeleton-${index}`}
+                sx={{
+                  borderRadius: 2,
+                  backgroundColor: "#fefefe",
+                  overflow: "hidden",
+                  p: 1.5,
+                  height: 100
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ bgcolor: "#eee", width: "60%", height: 20, mb: 1 }} />
+                <Typography variant="body2" sx={{ bgcolor: "#eee", width: "90%", height: 16 }} />
+                <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+                  <Typography sx={{ bgcolor: "#eee", width: 80, height: 24 }} />
+                </Box>
+              </Card>
+            ))
+          ) : tips.length > 0 ? (
+            tips.map((tip) => (
+              <Card 
+                key={tip.id}
+                sx={{
+                  borderRadius: 2,
+                  backgroundColor: "#fefefe",
+                  overflow: "hidden"
+                }}
+              >
+                <Box sx={{ p: 1.5 }}>
+                  <Typography variant="subtitle2" fontWeight="bold">
+                    {tip.title}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {tip.short_description}
+                  </Typography>
 
-        <Box sx={{ mb: isMobile ? 1 : 3 }}>
-          <Typography 
-            variant={isMobile ? "body2" : "subtitle1"} 
-            fontWeight="bold" 
-            color="white"
-            sx={{ 
-              display: "flex", 
-              alignItems: "center", 
-              gap: 1, 
-              mb: 1,
-              position: isMobile ? "sticky" : "static",
-              top: isMobile ? 40 : 0,
-              bgcolor: isMobile ? "rgba(63, 78, 61, 0.95)" : "transparent",
-              zIndex: 1,
-              p: isMobile ? 1 : 0
-            }}>
-            <UpdateIcon fontSize={isMobile ? "small" : "medium"} />
-            Latest Articles
-          </Typography>
-          
-          {loading.articles ? (
-            Array(isMobile ? 1 : 2).fill(0).map((_, index) => (
-              <Card key={`article-skeleton-${index}`} sx={{ 
-                mb: 2, 
-                p: 1, 
-                borderRadius: 2,
-                backgroundColor: "rgba(255,255,255,0.1)"
-              }}>
-                <Skeleton variant="text" width="80%" height={24} />
-                <Skeleton variant="text" width="100%" height={20} />
+                  <Collapse in={expandedTip === tip.id}>
+                    <Box sx={{ 
+                      maxHeight: "200px", // Ограничиваем высоту раскрытого контента
+                      overflowY: "auto",
+                      mt: 1,
+                      pr: 1,
+                      '&::-webkit-scrollbar': {
+                        width: '4px',
+                      },
+                      '&::-webkit-scrollbar-thumb': {
+                        backgroundColor: 'rgba(0,0,0,0.2)',
+                        borderRadius: '2px',
+                      }
+                    }}>
+                      <Typography 
+                        variant="body2" 
+                        color="text.secondary"
+                        sx={{ 
+                          wordBreak: "break-word",
+                          overflowWrap: "break-word"
+                        }}
+                      >
+                        {tip.full_description}
+                      </Typography>
+                    </Box>
+                  </Collapse>
+
+                  <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
+                    <Button
+                      size="small"
+                      onClick={() => handleTipToggle(tip.id)}
+                      endIcon={<ExpandMore sx={{
+                        transform: expandedTip === tip.id ? "rotate(180deg)" : "rotate(0deg)",
+                        transition: "transform 0.3s ease"
+                      }} />}
+                      sx={{
+                        textTransform: "none",
+                        fontWeight: "bold",
+                        color: "primary.main"
+                      }}
+                    >
+                      {expandedTip === tip.id ? "Show Less" : "Read More"}
+                    </Button>
+                  </Box>
+                </Box>
               </Card>
             ))
           ) : (
-            latestArticles.map((article) => (
-              <Card 
-                key={`latest-${article.id}`}
-                sx={{
-                  mb: 2,
-                  p: 1,
-                  borderRadius: 2,
-                  backgroundColor: "#fefefe",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                  cursor: "pointer",
-                  transition: "transform 0.2s",
-                  "&:hover": { 
-                    transform: isMobile ? "none" : "translateY(-2px)",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
-                  }
-                }} 
-                onClick={() => navigate(`/healthtips/articles/${article.slug}`)}
-              >
-                <Typography variant="body2" fontWeight="bold">
-                  {article.title}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {isMobile ? `${article.excerpt.substring(0, 80)}...` : article.excerpt}
-                </Typography>
-              </Card>
-            ))
+            <Typography color="white" textAlign="center" py={2}>
+              No health tips available
+            </Typography>
           )}
         </Box>
+      </Box>
 
-        {loading.tips ? (
-          Array(isMobile ? 2 : 3).fill(0).map((_, index) => (
-            <Card 
-              key={`tip-skeleton-${index}`} 
-              sx={{ 
-                mb: 2, 
-                p: 1, 
-                borderRadius: 2,
-                backgroundColor: "rgba(255,255,255,0.1)"
-              }}>
-              <Skeleton variant="text" width="80%" height={24} />
-              <Skeleton variant="text" width="100%" height={20} />
-              <Skeleton variant="text" width="60%" height={20} />
-            </Card>
-          ))
-        ) : (
-          tips.map((tip) => (
-            <Card 
-              key={tip.id} 
-              sx={{
-                mb: 2,
-                p: 1,
-                borderRadius: 2,
-                backgroundColor: "#fefefe",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                transition: "all 0.2s",
-                "&:hover": {
-                  transform: isMobile ? "none" : "translateY(-2px)",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
-                }
-              }}>
-              <Typography variant="body2" fontWeight="bold">
-                {tip.title}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {isMobile ? `${tip.short_description.substring(0, 100)}...` : tip.short_description}
-              </Typography>
-
-              <Collapse in={expandedTip === tip.id}>
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                  {tip.full_description}
-                </Typography>
-              </Collapse>
-
-              <Box display="flex" justifyContent="flex-end" mt={1}>
-                <Button
-                  size="small"
-                  onClick={() => toggleTipExpansion(tip.id)}
-                  endIcon={<ExpandMore sx={{
-                    transform: expandedTip === tip.id ? "rotate(180deg)" : "rotate(0deg)",
-                    transition: "transform 0.3s ease"
-                  }} />}
-                  sx={{
-                    textTransform: "none",
-                    fontWeight: "bold",
-                    fontSize: "0.75rem",
-                    color: "primary.main",
-                    "&:hover": { color: "primary.dark" }
-                  }}>
-                  {expandedTip === tip.id ? "Hide" : "Read More"}
-                </Button>
-              </Box>
-            </Card>
-          ))
-        )}
-
-        {!isMobile && (
-          <Typography 
-            variant="body2" 
-            color="white" 
-            fontWeight="bold" 
-            textAlign="center" 
-            sx={{ 
-              mt: 2, 
-              cursor: "pointer", 
-              "&:hover": { textDecoration: "underline" } 
-            }} 
-            onClick={() => navigate("/health-tips")}
-          >
-            See more Health Tips →
-          </Typography>
-        )}
+      {/* Footer */}
+      <Box sx={{ 
+        p: 2, 
+        borderTop: "1px solid rgba(255,255,255,0.1)",
+        textAlign: "center" 
+      }}>
+        <Button 
+          variant="text" 
+          size="small" 
+          onClick={handleSeeMore}
+          sx={{ 
+            color: "white",
+            fontWeight: "medium",
+            "&:hover": { textDecoration: "underline" } 
+          }}
+        >
+          See more Health Tips →
+        </Button>
       </Box>
     </Box>
   );
-}
+} 

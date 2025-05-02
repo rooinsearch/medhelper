@@ -14,6 +14,7 @@ import {
 } from "@mui/material";
 import { GoogleLogin } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
+import { useSearchParams } from "react-router-dom";
 
 const VerificationCodeComponent = ({ 
   email, 
@@ -36,7 +37,14 @@ const VerificationCodeComponent = ({
 
   const handleChange = (e) => {
     const value = e.target.value.replace(/[^0-9]/g, '');
-    setVerificationCode(value);
+    if (value.length <= 6) {
+      setVerificationCode(value);
+    }
+  };
+
+  const handleVerify = () => {
+    if (verificationCode.length !== 6) return;
+    onVerify(verificationCode);
   };
 
   const handleResendCode = async () => {
@@ -76,7 +84,11 @@ const VerificationCodeComponent = ({
             onChange={handleChange}
             error={!!verificationError}
             helperText={verificationError}
-            inputProps={{ maxLength: 6 }}
+            inputProps={{ 
+              maxLength: 6,
+              inputMode: 'numeric',
+              pattern: '[0-9]*'
+            }}
             sx={{ mb: 2 }}
             autoFocus
           />
@@ -84,15 +96,21 @@ const VerificationCodeComponent = ({
           <Button
             fullWidth
             variant="contained"
-            onClick={() => onVerify(verificationCode)}
-            disabled={isLoading}
+            onClick={handleVerify}
+            disabled={isLoading || verificationCode.length !== 6}
             sx={{
               mb: 1,
               bgcolor: '#001A00',
               '&:hover': { bgcolor: '#FFA500' },
+              textTransform: 'none',
             }}
           >
-            {isLoading ? 'Verifying...' : 'Verify Email'}
+            {isLoading ? (
+              <>
+                <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                Verifying...
+              </>
+            ) : 'Verify Email'}
           </Button>
           
           <Button
@@ -103,7 +121,11 @@ const VerificationCodeComponent = ({
             sx={{ 
               mb: 0.5,
               color: '#001A00',
-              '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
+              '&:hover': { 
+                bgcolor: resendTimeout > 0 ? 'transparent' : 'rgba(0, 26, 0, 0.08)',
+                textDecoration: resendTimeout > 0 ? 'none' : 'underline' 
+              },
+              textTransform: 'none',
             }}
           >
             {resendTimeout > 0 ? `Resend in ${resendTimeout}s` : 'Resend Code'}
@@ -117,6 +139,7 @@ const VerificationCodeComponent = ({
             sx={{ 
               color: '#001A00',
               '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
+              textTransform: 'none',
             }}
           >
             Back to Registration
@@ -127,62 +150,62 @@ const VerificationCodeComponent = ({
   );
 };
 
-const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
-  // Refs
+const AuthModal = ({ open, onClose, onLogin, initialResetToken = null }) => {
+  const [searchParams] = useSearchParams();
   const emailInputRef = useRef(null);
   const passwordInputRef = useRef(null);
   const resetEmailInputRef = useRef(null);
   const newPasswordInputRef = useRef(null);
 
-  // State variables
   const [isRegistering, setIsRegistering] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
-  const [showResetForm, setShowResetForm] = useState(!!resetToken);
   const [showVerification, setShowVerification] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-
-  // Form data
+  const [resetToken, setResetToken] = useState(initialResetToken);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    fullName: "",
-    confirmPassword: "",
+    fullname: "", 
+    password2: "", 
   });
 
-  // Password reset states
   const [resetEmail, setResetEmail] = useState("");
   const [resetMessage, setResetMessage] = useState("");
   const [resetMessageType, setResetMessageType] = useState("error");
-
-  // New password states
+  
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [resetFormMessage, setResetFormMessage] = useState("");
   const [resetFormMessageType, setResetFormMessageType] = useState("error");
   const [resetSuccess, setResetSuccess] = useState(false);
 
-  // Verification states
   const [verificationError, setVerificationError] = useState("");
   const [verificationSuccess, setVerificationSuccess] = useState(false);
 
-  // API base URL
   const API_BASE_URL = "http://localhost:8000";
 
-  // Effects
   useEffect(() => {
     const savedEmail = localStorage.getItem("userEmail");
     if (savedEmail) {
       setFormData(prev => ({ ...prev, email: savedEmail }));
       setRememberMe(true);
     }
-  }, []);
+
+    // Check URL for reset token
+    const token = searchParams.get('token');
+    if (token) {
+      setResetToken(token);
+      setShowResetPassword(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [open, searchParams]);
 
   useEffect(() => {
     if (open) {
       setTimeout(() => {
-        if (showResetForm && newPasswordInputRef.current) {
+        if (resetToken && newPasswordInputRef.current) {
           newPasswordInputRef.current.focus();
         } else if (showResetPassword && resetEmailInputRef.current) {
           resetEmailInputRef.current.focus();
@@ -191,13 +214,8 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
         }
       }, 100);
     }
-  }, [open, showResetForm, showResetPassword, isRegistering]);
+  }, [open, resetToken, showResetPassword, isRegistering]);
 
-  useEffect(() => {
-    if (resetToken) setShowResetForm(true);
-  }, [resetToken]);
-
-  // Helper functions
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -208,10 +226,10 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     if (!formData.email) return setError("Email is required");
     if (!formData.password) return setError("Password is required");
     if (isRegistering) {
-      if (!formData.fullName) return setError("Full name is required");
+      if (!formData.fullname) return setError("Full name is required");
       if (formData.password.length < 8)
         return setError("Password must be at least 8 characters");
-      if (formData.password !== formData.confirmPassword)
+      if (formData.password !== formData.password2)
         return setError("Passwords do not match");
     }
     return true;
@@ -224,7 +242,6 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     }
   };
 
-  // Enhanced API call handler with CORS and error handling
   const makeApiCall = async (endpoint, method, body, errorMessage) => {
     setIsLoading(true);
     setError("");
@@ -236,13 +253,12 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
-        credentials: 'include', // For cookies if needed
+        credentials: 'include',
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        // Handle specific backend errors
         if (data.detail) {
           throw new Error(data.detail);
         } else if (data.email) {
@@ -259,21 +275,12 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
       return data;
     } catch (error) {
       console.error("API Error:", error);
-      
-      // Handle specific error cases
-      if (error.message.includes("Failed to fetch")) {
-        throw new Error("Network error. Please check your connection.");
-      } else if (error.message.includes("JSON")) {
-        throw new Error("Invalid server response");
-      } else {
-        throw error;
-      }
+      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Authentication handlers
   const handleAuth = async (endpoint, body, isRegister = false) => {
     if (!validateForm()) return;
 
@@ -316,18 +323,18 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
       {
         email: formData.email,
         password: formData.password,
-        fullName: formData.fullName,
+        fullname: formData.fullname, 
+        password2: formData.password2, 
       }, 
       true
     );
 
-  // Verification handlers
   const handleVerifyCode = async (code) => {
     try {
       await makeApiCall(
-        "/api/auth/verify/",
+        "/api/auth/verify-email/",
         "POST",
-        { email: formData.email, code },
+        { otp: code },
         "Verification failed"
       );
       
@@ -346,7 +353,7 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
   const handleResendCode = async () => {
     try {
       await makeApiCall(
-        "/api/auth/resend-code/",
+        "/api/auth/resend-otp/",
         "POST",
         { email: formData.email },
         "Failed to resend code"
@@ -359,7 +366,6 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     }
   };
 
-  // Password reset handlers
   const handleResetPassword = async () => {
     if (!resetEmail) {
       setResetMessage("Please enter your email.");
@@ -369,7 +375,7 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
 
     try {
       await makeApiCall(
-        "/password_reset_request/",
+        "/api/auth/request-password-reset/",
         "POST",
         { email: resetEmail },
         "Failed to send reset link"
@@ -402,7 +408,7 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
 
     try {
       await makeApiCall(
-        "/password_reset_confirm/",
+        "/api/auth/password-reset-confirm/",
         "POST",
         { token: resetToken, newPassword },
         "Failed to reset password"
@@ -413,11 +419,8 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
       setResetFormMessageType("success");
       
       setTimeout(() => {
-        setShowResetForm(false);
         setShowResetPassword(false);
-        if (resetToken) {
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
+        setResetToken(null);
       }, 3000);
     } catch (error) {
       setResetFormMessage(error.message || "Failed to reset password. The link may be expired.");
@@ -425,7 +428,6 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     }
   };
 
-  // Google auth handlers
   const handleGoogleSuccess = async (response) => {
     try {
       const token = response.credential;
@@ -451,14 +453,18 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
     setError("Google sign-in failed. Please try another method.");
   };
 
-  // Component renderers
   const renderResetPasswordForm = () => (
     <>
       <Typography variant="h6" sx={{ textAlign: "center", mb: 2 }}>
-        Create New Password
+        {resetToken ? "Create New Password" : "Invalid Reset Link"}
       </Typography>
-      {resetSuccess ? (
-        <Alert severity="success" sx={{ mb: 2, width: "100%" }}>
+      
+      {!resetToken ? (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          The password reset link is invalid or expired.
+        </Alert>
+      ) : resetSuccess ? (
+        <Alert severity="success" sx={{ mb: 2 }}>
           {resetFormMessage}
         </Alert>
       ) : (
@@ -488,19 +494,25 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
             disabled={isLoading}
           />
           {resetFormMessage && (
-            <Alert severity={resetFormMessageType} sx={{ mb: 2, width: "100%" }}>
+            <Alert severity={resetFormMessageType} sx={{ mb: 2 }}>
               {resetFormMessage}
             </Alert>
           )}
           <Button
             fullWidth
             variant="contained"
-            sx={{ bgcolor: "#001A00", color: "white", "&:hover": { bgcolor: "#FFA500" } }}
+            sx={{ 
+              bgcolor: "#001A00", 
+              color: "white", 
+              "&:hover": { bgcolor: "#FFA500" },
+              "&:disabled": { bgcolor: "#e0e0e0" }
+            }}
             onClick={handleSubmitNewPassword}
-            disabled={isLoading}
-            startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : null}
+            disabled={isLoading || !resetToken}
           >
-            {isLoading ? "Saving..." : "Save New Password"}
+            {isLoading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : "Save New Password"}
           </Button>
         </>
       )}
@@ -526,21 +538,31 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
       <Button
         fullWidth
         variant="contained"
-        sx={{ mt: 2, bgcolor: "#001A00", color: "white", "&:hover": { bgcolor: "#FFA500" } }}
+        sx={{ 
+          mt: 2, 
+          bgcolor: "#001A00", 
+          color: "white", 
+          "&:hover": { bgcolor: "#FFA500" } 
+        }}
         onClick={handleResetPassword}
         disabled={isLoading}
-        startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : null}
       >
-        {isLoading ? "Sending..." : "Send Reset Link"}
+        {isLoading ? (
+          <CircularProgress size={24} color="inherit" />
+        ) : "Send Reset Link"}
       </Button>
       {resetMessage && (
-        <Alert severity={resetMessageType} sx={{ mt: 2, width: "100%" }}>
+        <Alert severity={resetMessageType} sx={{ mt: 2 }}>
           {resetMessage}
         </Alert>
       )}
       <Button
         variant="text"
-        sx={{ mt: 2, color: "#001A00", "&:hover": { bgcolor: "rgba(64, 145, 108, 0.08)" } }}
+        sx={{ 
+          mt: 2, 
+          color: "#001A00", 
+          "&:hover": { bgcolor: "rgba(0, 26, 0, 0.08)" } 
+        }}
         onClick={() => setShowResetPassword(false)}
         disabled={isLoading}
       >
@@ -555,7 +577,7 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
         {isRegistering ? "Create an Account" : "Welcome!"}
       </Typography>
       {error && (
-        <Alert severity="error" sx={{ mb: 2, width: "100%" }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
@@ -565,8 +587,8 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
             size="small"
             fullWidth
             label="Full Name"
-            name="fullName"
-            value={formData.fullName}
+            name="fullname" 
+            value={formData.fullname}
             onChange={handleChange}
             disabled={isLoading}
           />
@@ -601,8 +623,8 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
             fullWidth
             label="Confirm Password"
             type="password"
-            name="confirmPassword"
-            value={formData.confirmPassword}
+            name="password2"
+            value={formData.password2}
             onChange={handleChange}
             onKeyPress={(e) => handleKeyPress(e, handleSignUp)}
             disabled={isLoading}
@@ -620,15 +642,10 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
           }}
           onClick={isRegistering ? handleSignUp : handleSignIn}
           disabled={isLoading}
-          startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : null}
         >
-          {isLoading
-            ? isRegistering
-              ? "Signing Up..."
-              : "Signing In..."
-            : isRegistering
-            ? "Sign Up"
-            : "Sign In"}
+          {isLoading ? (
+            <CircularProgress size={24} color="inherit" />
+          ) : isRegistering ? "Sign Up" : "Sign In"}
         </Button>
         <Box sx={{ position: "relative", width: "100%", my: 1 }}>
           <Divider sx={{ my: 1, bgcolor: "#40916C" }} />
@@ -657,20 +674,29 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
                 <Checkbox
                   checked={rememberMe}
                   onChange={() => setRememberMe(!rememberMe)}
-                  sx={{ color: "#001A00", "&.Mui-checked": { color: "#001A00" } }}
+                  sx={{ 
+                    color: "#001A00", 
+                    "&.Mui-checked": { color: "#001A00" } 
+                  }}
                   disabled={isLoading}
                 />
               }
-              label={<Typography sx={{ color: "#001A00", fontSize: "0.85rem" }}>Remember me</Typography>}
+              label={
+                <Typography sx={{ color: "#001A00", fontSize: "0.85rem" }}>
+                  Remember me
+                </Typography>
+              }
             />
             <Button
               variant="text"
               sx={{
-                cursor: "pointer",
                 color: "#001A00",
                 fontSize: "0.85rem",
                 textTransform: "none",
-                "&:hover": { bgcolor: "rgba(64, 145, 108, 0.08)", textDecoration: "underline" },
+                "&:hover": { 
+                  bgcolor: "rgba(0, 26, 0, 0.08)", 
+                  textDecoration: "underline" 
+                },
               }}
               onClick={() => setShowResetPassword(true)}
               disabled={isLoading}
@@ -682,13 +708,14 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
         <Button
           variant="text"
           sx={{
-            textAlign: "center",
             mt: 1,
-            cursor: "pointer",
             color: "#001A00",
             fontSize: "0.9rem",
             textTransform: "none",
-            "&:hover": { bgcolor: "rgba(64, 145, 108, 0.08)", textDecoration: "underline" },
+            "&:hover": { 
+              bgcolor: "rgba(0, 26, 0, 0.08)", 
+              textDecoration: "underline" 
+            },
           }}
           onClick={() => {
             setIsRegistering(!isRegistering);
@@ -696,7 +723,9 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
           }}
           disabled={isLoading}
         >
-          {isRegistering ? "Already have an account? Sign in" : "Don't have an account? Register here"}
+          {isRegistering 
+            ? "Already have an account? Sign in" 
+            : "Don't have an account? Register here"}
         </Button>
       </Box>
     </>
@@ -711,25 +740,28 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
           left: "50%",
           transform: "translate(-50%, -50%)",
           width: 400,
-          maxHeight: "100vh",
+          maxHeight: "90vh",
           overflowY: "auto",
-          bgcolor: "#FFFFFF",
-          color: "#40916C",
+          bgcolor: "background.paper",
           boxShadow: 24,
           p: 3,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          scrollbarWidth: "none",
-          "-ms-overflow-style": "none",
-          "&::-webkit-scrollbar": { display: "none" },
+          borderRadius: 2,
+          outline: "none",
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <Typography variant="h4" fontWeight="bold" sx={{ mb: 2, color: "#001A00" }}>
+        <Typography 
+          variant="h4" 
+          fontWeight="bold" 
+          sx={{ 
+            mb: 2, 
+            color: "#001A00",
+            textAlign: "center"
+          }}
+        >
           MedHelper
         </Typography>
+        
         {showVerification ? (
           <VerificationCodeComponent
             email={formData.email}
@@ -743,7 +775,7 @@ const AuthModal = ({ open, onClose, onLogin, resetToken = null }) => {
             verificationError={verificationError}
             verificationSuccess={verificationSuccess}
           />
-        ) : showResetForm ? (
+        ) : resetToken ? (
           renderResetPasswordForm()
         ) : showResetPassword ? (
           renderRequestResetForm()

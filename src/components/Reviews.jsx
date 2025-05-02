@@ -1,62 +1,136 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, Typography, Avatar, Box, IconButton } from "@mui/material";
+import { 
+  Card, 
+  CardContent, 
+  Typography, 
+  Avatar, 
+  Box, 
+  IconButton,
+  Skeleton 
+} from "@mui/material";
 import Rating from "@mui/material/Rating";
 import { Swiper, SwiperSlide } from "swiper/react";
+import { EffectCoverflow, Navigation } from "swiper/modules";
+import { ArrowBackIos, ArrowForwardIos } from "@mui/icons-material";
 import "swiper/css";
 import "swiper/css/effect-coverflow";
 import "swiper/css/navigation";
-import { EffectCoverflow, Navigation } from "swiper/modules";
-import { ArrowBackIos, ArrowForwardIos } from "@mui/icons-material";
 
 const Reviews = () => {
   const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch('/data/testimonials.json')
-      .then(response => {
+    const fetchReviews = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/data/testimonials.json');
+        
         if (!response.ok) {
           throw new Error('Failed to load reviews');
         }
-        return response.json();
-      })
-      .then(data => setReviews(data))
-      .catch(error => {
-        console.error('Error loading reviews:', error);
+        
+        const data = await response.json();
+        setReviews(data);
+      } catch (err) {
+        console.error('Error loading reviews:', err);
+        setError(err.message);
+        // Fallback data
         setReviews([
           {
             id: 1,
-            name: "default_user",
-            rating: 4,
-            text: "Loading reviews...",
+            name: "John Doe",
+            rating: 4.5,
+            text: "Great service! The AI analysis was surprisingly accurate.",
+          },
+          {
+            id: 2,
+            name: "Jane Smith",
+            rating: 5,
+            text: "Saved me hours of waiting. Highly recommend!",
           }
         ]);
-      });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReviews();
   }, []);
 
   return (
     <Box
       sx={{
         backgroundColor: "#D1653E",
-        py: 3,
+        py: 4,
+        px: 2,
         textAlign: "center",
         width: "100%",
-        minHeight: 250,
-        overflow: "hidden",
+        minHeight: 300,
+        position: "relative",
         zIndex: 20,
-        position: "absolute",
-        top: "550px",
       }}
     >
-      <Typography variant="h6" color="white" fontWeight="bold" gutterBottom>
+      <Typography 
+        variant="h5" 
+        color="white" 
+        fontWeight="bold" 
+        gutterBottom
+        sx={{ mb: 3 }}
+      >
         Real Stories, Real Impact
       </Typography>
 
-      {reviews.length > 0 ? (
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <IconButton className="swiper-button-prev" sx={{ color: "white" }}>
-            <ArrowBackIos />
-          </IconButton>
+      {error && (
+        <Typography color="error" sx={{ mb: 2 }}>
+          {error}
+        </Typography>
+      )}
 
+      <Box sx={{ 
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "center",
+        position: "relative"
+      }}>
+        <IconButton 
+          className="swiper-button-prev" 
+          sx={{ 
+            color: "white",
+            position: "absolute",
+            left: { xs: 0, sm: 20 },
+            zIndex: 2
+          }}
+        >
+          <ArrowBackIos />
+        </IconButton>
+
+        {loading ? (
+          <Box sx={{ 
+            display: "flex", 
+            gap: 2,
+            width: "100%",
+            justifyContent: "center"
+          }}>
+            {[1, 2, 3].map((item) => (
+              <Card key={item} sx={{ 
+                width: 300, 
+                height: 180,
+                p: 2,
+                borderRadius: 3,
+                backgroundColor: "rgba(255,255,255,0.8)"
+              }}>
+                <Skeleton variant="rectangular" width="100%" height={28} sx={{ mb: 2 }} />
+                <Skeleton variant="rectangular" width="100%" height={60} sx={{ mb: 2 }} />
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Skeleton variant="circular" width={25} height={25} />
+                  <Skeleton variant="text" width={100} height={20} />
+                </Box>
+              </Card>
+            ))}
+          </Box>
+        ) : (
           <Swiper
             effect="coverflow"
             grabCursor
@@ -74,13 +148,39 @@ const Reviews = () => {
               slideShadows: false,
             }}
             modules={[EffectCoverflow, Navigation]}
-            style={{ maxWidth: "85%", margin: "0 auto" }}
+            style={{ 
+              width: "100%", 
+              maxWidth: "90%",
+              padding: "10px 0"
+            }}
+            breakpoints={{
+              320: {
+                slidesPerView: 1,
+                spaceBetween: 10
+              },
+              600: {
+                slidesPerView: 2,
+                spaceBetween: 20
+              },
+              900: {
+                slidesPerView: 3,
+                spaceBetween: 30
+              }
+            }}
           >
             {reviews.map((review) => (
-              <SwiperSlide key={review.id} style={{ maxWidth: 320 }}>
+              <SwiperSlide 
+                key={review.id} 
+                style={{ 
+                  width: 300,
+                  display: "flex",
+                  justifyContent: "center"
+                }}
+              >
                 <Card
                   sx={{
-                    height: 180,
+                    height: 200,
+                    width: "100%",
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "space-between",
@@ -107,15 +207,31 @@ const Reviews = () => {
                       precision={0.5} 
                       size="medium" 
                     />
-                    <Typography variant="body2" color="text.secondary" mt={1}>
+                    <Typography 
+                      variant="body2" 
+                      color="text.secondary" 
+                      mt={1}
+                      sx={{
+                        display: "-webkit-box",
+                        WebkitLineClamp: 4,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis"
+                      }}
+                    >
                       {review.text}
                     </Typography>
                   </CardContent>
                   <Box mt={1} display="flex" alignItems="center" justifyContent="center" gap={1}>
-                    <Avatar sx={{ bgcolor: "#F97316", width: 25, height: 25 }}>
+                    <Avatar sx={{ 
+                      bgcolor: "#F97316", 
+                      width: 28, 
+                      height: 28,
+                      fontSize: "0.9rem"
+                    }}>
                       {review.name[0].toUpperCase()}
                     </Avatar>
-                    <Typography variant="subtitle2" fontWeight="bold" fontSize="0.7rem">
+                    <Typography variant="subtitle2" fontWeight="bold">
                       {review.name}
                     </Typography>
                   </Box>
@@ -123,14 +239,20 @@ const Reviews = () => {
               </SwiperSlide>
             ))}
           </Swiper>
+        )}
 
-          <IconButton className="swiper-button-next" sx={{ color: "white" }}>
-            <ArrowForwardIos />
-          </IconButton>
-        </Box>
-      ) : (
-        <Typography color="white">Loading reviews...</Typography>
-      )}
+        <IconButton 
+          className="swiper-button-next" 
+          sx={{ 
+            color: "white",
+            position: "absolute",
+            right: { xs: 0, sm: 20 },
+            zIndex: 2
+          }}
+        >
+          <ArrowForwardIos />
+        </IconButton>
+      </Box>
     </Box>
   );
 };

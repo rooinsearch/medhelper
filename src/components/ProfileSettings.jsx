@@ -1,500 +1,486 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box, TextField, Typography, Button, Grid, FormControl,
   Select, MenuItem, InputLabel, Tabs, Tab, Dialog, DialogActions,
   DialogContent, DialogTitle, List, ListItem, ListItemText, Divider,
-  IconButton, Card
+  IconButton, Card, CircularProgress, Snackbar, Alert
 } from "@mui/material";
 import {
   Edit, Save, Lock, CreditCard, Add, Delete, Lock as LockIcon
 } from "@mui/icons-material";
+import axios from "axios";
+
+// Django API configuration
+const api = axios.create({
+  baseURL: "http://localhost:8000/api",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${localStorage.getItem('access_token')}` // Для JWT аутентификации
+  },
+  withCredentials: true // Для сессий и CSRF
+});
 
 const ProfileSettings = () => {
-  // User profile state
-  const [userData, setUserData] = useState({
-    name: "",
-    surname: "",
+  // User states
+  const [profile, setProfile] = useState({
+    first_name: "",
+    last_name: "",
     gender: "",
-    birthDate: "",
-    phone: "+7 747 591 0535",
-    email: "user@example.com"
+    birth_date: "",
+    phone: "",
+    email: ""
   });
-  const [originalData, setOriginalData] = useState({});
   const [editMode, setEditMode] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Other states
-  const [activeTab, setActiveTab] = useState(0);
+  // Password states
   const [passwordDialog, setPasswordDialog] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    current_password: "",
+    new_password: "",
+    confirm_password: "",
+    verification_code: ""
+  });
   const [verificationSent, setVerificationSent] = useState(false);
-  const [paymentDialog, setPaymentDialog] = useState(false);
-  const [cards, setCards] = useState([
-    { id: 1, type: "VISA", last4: "4242", exp: "04/2025" },
-    { id: 2, type: "MASTERCARD", last4: "5555", exp: "12/2024" }
-  ]);
+
+  // Payment states
+  const [activeTab, setActiveTab] = useState(0);
+  const [cards, setCards] = useState([]);
+  const [cardDialog, setCardDialog] = useState(false);
   const [newCard, setNewCard] = useState({
-    number: "", name: "", expiry: "", cvc: "", type: ""
+    number: "",
+    name: "",
+    expiry: "",
+    cvc: "",
+    type: ""
   });
 
-  // Load user data
-  useEffect(() => {
-    // Simulate API call to fetch user data
-    const mockUserData = {
-      name: "John",
-      surname: "Doe",
-      gender: "male",
-      birthDate: "15.05.1990",
-      phone: "+7 747 591 0535",
-      email: "john.doe@example.com"
-    };
-    
-    setUserData(mockUserData);
-    setOriginalData(mockUserData);
-  }, []);
+  // Notification state
+  const [alert, setAlert] = useState({
+    open: false,
+    message: "",
+    severity: "info"
+  });
 
   // Helper functions
+  const showAlert = (message, severity = "info") => {
+    setAlert({ open: true, message, severity });
+  };
+
   const detectCardType = (number) => {
-    const cleanedNumber = number.replace(/\s/g, '');
-    if (/^4/.test(cleanedNumber)) return 'VISA';
-    if (/^5[1-5]/.test(cleanedNumber)) return 'MASTERCARD';
-    return '';
+    const cleaned = number.replace(/\s/g, '');
+    if (/^4/.test(cleaned)) return 'VISA';
+    if (/^5[1-5]/.test(cleaned)) return 'MASTERCARD';
+    return 'CARD';
   };
 
   const formatCardNumber = (number) => {
     return number.replace(/\s/g, '').replace(/(\d{4})/g, '$1 ').trim();
   };
 
+  // API: Fetch profile data
+  const fetchProfile = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await api.post("/profile/", {});
+      setProfile(response.data);
+    } catch (error) {
+      showAlert(error.response?.data?.detail || "Failed to load profile", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // API: Fetch payment cards
+  const fetchCards = useCallback(async () => {
+    try {
+      const response = await api.post("/payment-cards/", {});
+      setCards(response.data);
+    } catch (error) {
+      showAlert("Failed to load payment methods", "error");
+    }
+  }, []);
+
+  // API: Update profile
+  const updateProfile = useCallback(async () => {
+    try {
+      await api.post("/profile/update/", profile);
+      showAlert("Profile updated successfully", "success");
+      setEditMode(false);
+    } catch (error) {
+      showAlert(error.response?.data?.detail || "Update failed", "error");
+    }
+  }, [profile]);
+
+  // API: Change password
+  const changePassword = async () => {
+    try {
+      if (passwordData.new_password !== passwordData.confirm_password) {
+        showAlert("Passwords don't match", "error");
+        return;
+      }
+
+      await api.post("/password/change/", passwordData);
+      showAlert("Password changed successfully", "success");
+      setPasswordDialog(false);
+    } catch (error) {
+      showAlert(error.response?.data?.detail || "Password change failed", "error");
+    }
+  };
+
+  // API: Add payment card
+  const addCard = async () => {
+    try {
+      const response = await api.post("/payment-cards/add/", {
+        number: newCard.number.replace(/\s/g, ''),
+        name: newCard.name,
+        expiry: newCard.expiry,
+        cvc: newCard.cvc
+      });
+      setCards([...cards, response.data]);
+      setCardDialog(false);
+      showAlert("Card added successfully", "success");
+    } catch (error) {
+      showAlert(error.response?.data?.detail || "Failed to add card", "error");
+    }
+  };
+
+  // API: Delete payment card
+  const deleteCard = async (cardId) => {
+    try {
+      await api.post("/payment-cards/delete/", { card_id: cardId });
+      setCards(cards.filter(card => card.id !== cardId));
+      showAlert("Card removed", "success");
+    } catch (error) {
+      showAlert("Failed to delete card", "error");
+    }
+  };
+
+  // Initial data load
+  useEffect(() => {
+    fetchProfile();
+    fetchCards();
+  }, [fetchProfile, fetchCards]);
+
   // Handlers
-  const handleTabChange = (_, newValue) => {
-    setActiveTab(newValue);
-  };
-
   const handleProfileChange = (field) => (e) => {
-    setUserData(prev => ({
-      ...prev,
-      [field]: e.target.value
-    }));
+    setProfile({ ...profile, [field]: e.target.value });
   };
 
-  const handleSaveProfile = () => {
-    console.log("Saving:", userData);
-    setOriginalData(userData);
-    setEditMode(false);
-    alert("Profile updated successfully!");
+  const handlePasswordChange = (field) => (e) => {
+    setPasswordData({ ...passwordData, [field]: e.target.value });
   };
 
-  const handleCancelEdit = () => {
-    setUserData(originalData);
-    setEditMode(false);
-  };
-
-  const handleCardInputChange = ({ target: { name, value } }) => {
+  const handleCardChange = (e) => {
+    const { name, value } = e.target;
+    
     if (name === "number") {
-      setNewCard(prev => ({ 
-        ...prev, 
-        [name]: formatCardNumber(value), 
-        type: detectCardType(value) 
-      }));
+      setNewCard({
+        ...newCard,
+        number: formatCardNumber(value),
+        type: detectCardType(value)
+      });
       return;
     }
+    
     if (name === "expiry") {
       const digits = value.replace(/\D/g, '');
       const formatted = digits.length > 2 
         ? `${digits.slice(0,2)}/${digits.slice(2,4)}` 
         : digits;
-      setNewCard(prev => ({ ...prev, [name]: formatted }));
+      setNewCard({ ...newCard, expiry: formatted });
       return;
     }
-    setNewCard(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSaveCard = () => {
-    if (!newCard.number || !newCard.expiry || !newCard.cvc) return;
     
-    setCards(prev => [...prev, {
-      id: Date.now(),
-      type: newCard.type || "CREDIT CARD",
-      last4: newCard.number.replace(/\s/g, '').slice(-4),
-      exp: newCard.expiry
-    }]);
-    setPaymentDialog(false);
-    setNewCard({ number: "", name: "", expiry: "", cvc: "", type: "" });
+    setNewCard({ ...newCard, [name]: value });
   };
 
-  // Tab components
-  const renderAccountTab = () => (
-    <Grid container spacing={2} sx={{ marginTop: '15px' }}>
-      <Grid item xs={12} sm={6}>
-        <TextField 
-          fullWidth 
-          label="Name" 
-          value={userData.name}
-          onChange={handleProfileChange('name')}
-          variant="outlined" 
-          disabled={!editMode} 
-          size="small" 
-        />
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <TextField 
-          fullWidth 
-          label="Surname" 
-          value={userData.surname}
-          onChange={handleProfileChange('surname')}
-          variant="outlined" 
-          disabled={!editMode} 
-          size="small" 
-        />
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <FormControl fullWidth size="small">
-          <InputLabel>Gender</InputLabel>
-          <Select 
-            value={userData.gender} 
-            label="Gender" 
-            onChange={handleProfileChange('gender')}
-            disabled={!editMode}
-          >
-            {['male', 'female', 'other'].map(g => (
-              <MenuItem value={g} key={g}>
-                {g.charAt(0).toUpperCase() + g.slice(1)}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <TextField 
-          fullWidth 
-          label="Date of Birth" 
-          value={userData.birthDate}
-          onChange={handleProfileChange('birthDate')}
-          variant="outlined" 
-          placeholder="DD.MM.YYYY" 
-          disabled={!editMode} 
-          size="small" 
-        />
-      </Grid>
-      <Grid item xs={12} sx={{ height: '20px' }} />
-      <Grid item xs={12} sm={6}>
-        <TextField 
-          fullWidth 
-          label="Phone Number" 
-          value={userData.phone}
-          onChange={handleProfileChange('phone')}
-          variant="outlined" 
-          disabled={!editMode} 
-          size="small" 
-        />
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <TextField 
-          fullWidth 
-          label="Email" 
-          type="email" 
-          value={userData.email}
-          onChange={handleProfileChange('email')}
-          variant="outlined" 
-          disabled={!editMode} 
-          size="small" 
-        />
-      </Grid>
-      <Grid item xs={12}>
-        <Button 
-          variant="outlined" 
-          onClick={() => setPasswordDialog(true)} 
-          disabled={!editMode}
-          sx={{ 
-            borderRadius: 1, 
-            color: "green", 
-            borderColor: "green", 
-            '&:hover': { 
-              borderColor: "darkgreen", 
-              color: "darkgreen" 
-            }
-          }}
-        >
-          Change Password
-        </Button>
-      </Grid>
-    </Grid>
-  );
+  const handleSendVerification = () => {
+    // In real app: api.post("/send-verification/", { phone: profile.phone })
+    setVerificationSent(true);
+    showAlert("Verification code sent", "info");
+  };
 
-  const renderPaymentTab = () => (
-    <Box>
-      <Typography variant="h6" gutterBottom sx={{ fontSize: '1rem', fontWeight: 'medium' }}>
-        Saved Payment Methods
-      </Typography>
-      {cards.length === 0 ? (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          No saved payment methods
-        </Typography>
-      ) : (
-        <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
-          {cards.map(card => (
-            <React.Fragment key={card.id}>
-              <ListItem alignItems="flex-start">
-                <ListItemText
-                  primary={`${card.type} •••• ${card.last4}`}
-                  secondary={`Expires ${card.exp}`}
-                />
-                <IconButton 
-                  edge="end" 
-                  onClick={() => setCards(prev => prev.filter(c => c.id !== card.id))} 
-                  disabled={!editMode}
-                >
-                  <Delete color={editMode ? "error" : "disabled"} />
-                </IconButton>
-              </ListItem>
-              <Divider variant="inset" component="li" />
-            </React.Fragment>
-          ))}
-        </List>
-      )}
-      <Button 
-        variant="outlined" 
-        startIcon={<Add />} 
-        onClick={() => setPaymentDialog(true)} 
-        disabled={!editMode} 
-        sx={{ 
-          mt: 2, 
-          borderRadius: 1, 
-          color: editMode ? "green" : "gray", 
-          borderColor: editMode ? "green" : "gray", 
-          '&:hover': { 
-            borderColor: editMode ? "darkgreen" : "gray", 
-            color: editMode ? "darkgreen" : "gray" 
-          }
-        }}
-      >
-        Add New Payment Method
-      </Button>
-    </Box>
-  );
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
-    <Box sx={{ p: 2, backgroundColor: "#fff", maxWidth: "100%", pt: 1 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold',color: '#001A00', m: 0 }}>
+    <Box sx={{ p: 3 }}>
+      {/* Header and Edit/Save buttons */}
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
+        <Typography variant="h5" sx={{ fontWeight: "bold" }}>
           Profile Settings
         </Typography>
         {editMode ? (
           <Box>
-            <Button
-              variant="outlined"
-              onClick={handleCancelEdit}
-              sx={{ 
-                mr: 2,
-                borderRadius: 1,
-                color: "gray",
-                borderColor: "gray",
-                '&:hover': { borderColor: "darkgray", color: "darkgray" }
-              }}
-            >
+            <Button onClick={() => setEditMode(false)} sx={{ mr: 2 }}>
               Cancel
             </Button>
-            <Button
+            <Button 
+              variant="contained" 
+              onClick={updateProfile}
               startIcon={<Save />}
-              variant="contained"
-              onClick={handleSaveProfile}
-              sx={{ 
-                borderRadius: 1, 
-                bgcolor: "green", 
-                '&:hover': { bgcolor: "darkgreen" }
-              }}
             >
               Save
             </Button>
           </Box>
         ) : (
-          <Button
-            startIcon={<Edit />}
-            variant="outlined"
+          <Button 
+            variant="outlined" 
             onClick={() => setEditMode(true)}
-            sx={{ 
-              borderRadius: 1, 
-              color: "green", 
-              borderColor: "green", 
-              '&:hover': { borderColor: "darkgreen", color: "darkgreen" }
-            }}
+            startIcon={<Edit />}
           >
             Edit
           </Button>
         )}
       </Box>
 
+      {/* Tabs */}
       <Tabs 
         value={activeTab} 
-        onChange={handleTabChange} 
-        sx={{ 
-          mb: 1,
-          '& .MuiTab-root.Mui-selected': { color: 'green' }, 
-          '& .MuiTabs-indicator': { backgroundColor: 'green' },
-          '& .MuiTab-root': { fontSize: '0.75rem', minWidth: 'unset', padding: '6px 12px' }
-        }}
+        onChange={(_, newValue) => setActiveTab(newValue)}
+        sx={{ mb: 3 }}
       >
-        {[
-          { icon: <Lock fontSize="small" />, label: "Account" },
-          { icon: <CreditCard fontSize="small" />, label: "Payment" }
-        ].map((tab, index) => (
-          <Tab key={index} icon={tab.icon} label={tab.label} />
-        ))}
+        <Tab label="Account" icon={<Lock />} />
+        <Tab label="Payment" icon={<CreditCard />} />
       </Tabs>
 
-      {activeTab === 0 ? renderAccountTab() : renderPaymentTab()}
+      {/* Account Tab */}
+      {activeTab === 0 && (
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="First Name"
+              value={profile.first_name}
+              onChange={handleProfileChange("first_name")}
+              disabled={!editMode}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Last Name"
+              value={profile.last_name}
+              onChange={handleProfileChange("last_name")}
+              disabled={!editMode}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth disabled={!editMode}>
+              <InputLabel>Gender</InputLabel>
+              <Select
+                value={profile.gender}
+                label="Gender"
+                onChange={handleProfileChange("gender")}
+              >
+                <MenuItem value="male">Male</MenuItem>
+                <MenuItem value="female">Female</MenuItem>
+                <MenuItem value="other">Other</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Date of Birth"
+              type="date"
+              value={profile.birth_date}
+              onChange={handleProfileChange("birth_date")}
+              InputLabelProps={{ shrink: true }}
+              disabled={!editMode}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Phone"
+              value={profile.phone}
+              onChange={handleProfileChange("phone")}
+              disabled={!editMode}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Email"
+              value={profile.email}
+              disabled
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <Button
+              variant="outlined"
+              onClick={() => setPasswordDialog(true)}
+              disabled={!editMode}
+            >
+              Change Password
+            </Button>
+          </Grid>
+        </Grid>
+      )}
 
-      {/* Password Dialog */}
-      <Dialog open={passwordDialog} onClose={() => setPasswordDialog(false)} maxWidth="xs" fullWidth>
+      {/* Payment Tab */}
+      {activeTab === 1 && (
+        <Box>
+          <List>
+            {cards.map((card) => (
+              <Card key={card.id} sx={{ mb: 2 }}>
+                <ListItem
+                  secondaryAction={
+                    <IconButton 
+                      onClick={() => deleteCard(card.id)}
+                      disabled={!editMode}
+                    >
+                      <Delete />
+                    </IconButton>
+                  }
+                >
+                  <ListItemText
+                    primary={`${card.type} •••• ${card.last_four}`}
+                    secondary={`Expires ${card.expiry_date}`}
+                  />
+                </ListItem>
+              </Card>
+            ))}
+          </List>
+          <Button
+            variant="outlined"
+            startIcon={<Add />}
+            onClick={() => setCardDialog(true)}
+            disabled={!editMode}
+          >
+            Add Payment Method
+          </Button>
+        </Box>
+      )}
+
+      {/* Password Change Dialog */}
+      <Dialog open={passwordDialog} onClose={() => setPasswordDialog(false)}>
         <DialogTitle>Change Password</DialogTitle>
         <DialogContent>
-          {['Current', 'New', 'Confirm New'].map((label, i) => (
-            <TextField 
-              key={label} 
-              autoFocus={i === 0} 
-              margin="dense" 
-              fullWidth 
-              size="small"
-              label={`${label} Password`} 
-              type="password" 
-              variant="outlined" 
-              sx={{ mb: 2 }} 
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Current Password"
+            type="password"
+            value={passwordData.current_password}
+            onChange={handlePasswordChange("current_password")}
+          />
+          <TextField
+            fullWidth
+            margin="normal"
+            label="New Password"
+            type="password"
+            value={passwordData.new_password}
+            onChange={handlePasswordChange("new_password")}
+          />
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Confirm Password"
+            type="password"
+            value={passwordData.confirm_password}
+            onChange={handlePasswordChange("confirm_password")}
+          />
+          {verificationSent && (
+            <TextField
+              fullWidth
+              margin="normal"
+              label="Verification Code"
+              value={passwordData.verification_code}
+              onChange={handlePasswordChange("verification_code")}
             />
-          ))}
-          {verificationSent ? (
-            <TextField 
-              margin="dense" 
-              fullWidth 
-              size="small" 
-              variant="outlined"
-              label="Verification Code" 
-              placeholder="Enter code sent to your phone" 
-              sx={{ mb: 1 }} 
-            />
-          ) : (
-            <Button 
-              variant="outlined" 
-              onClick={() => setVerificationSent(true)}
-              sx={{ 
-                borderRadius: 1, 
-                color: "green", 
-                borderColor: "green", 
-                '&:hover': { 
-                  borderColor: "darkgreen", 
-                  color: "darkgreen" 
-                }
-              }}
-            >
-              Send Verification Code
-            </Button>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPasswordDialog(false)} sx={{ color: "gray" }}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={() => setPasswordDialog(false)} 
-            disabled={!verificationSent}
-            variant="contained" 
-            sx={{ 
-              borderRadius: 1, 
-              bgcolor: "green", 
-              '&:hover': { bgcolor: "darkgreen" } 
-            }}
-          >
-            Confirm Change
-          </Button>
+          <Button onClick={() => setPasswordDialog(false)}>Cancel</Button>
+          {!verificationSent ? (
+            <Button onClick={handleSendVerification}>
+              Send Verification Code
+            </Button>
+          ) : (
+            <Button onClick={changePassword} variant="contained">
+              Confirm Change
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 
-      {/* Payment Dialog */}
-      <Dialog open={paymentDialog} onClose={() => setPaymentDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 'bold', fontSize: '1.25rem' }}>
-          Add Payment Card
-        </DialogTitle>
+      {/* Add Card Dialog */}
+      <Dialog open={cardDialog} onClose={() => setCardDialog(false)}>
+        <DialogTitle>Add Payment Card</DialogTitle>
         <DialogContent>
-          <Card sx={{ 
-            mb: 3, 
-            borderRadius: '12px', 
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
-            backgroundColor: '#f5f5f5', 
-            p: 3, 
-            position: 'relative' 
-          }}>
-            {newCard.type && (
-              <Box sx={{ 
-                position: 'absolute', 
-                top: 16, 
-                right: 16, 
-                backgroundColor: 'white', 
-                borderRadius: '4px', 
-                px: 1, 
-                py: 0.5 
-              }}>
-                <Typography variant="caption" fontWeight="bold">
-                  {newCard.type}
-                </Typography>
-              </Box>
-            )}
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                letterSpacing: '1px', 
-                mb: 3, 
-                fontFamily: 'monospace', 
-                fontSize: '1.1rem', 
-                color: 'text.primary', 
-                pt: 1 
-              }}
-            >
-              {newCard.number ? formatCardNumber(newCard.number) : '•••• •••• •••• ••••'}
+          <Card sx={{ p: 2, mb: 3, bgcolor: "#f5f5f5" }}>
+            <Typography variant="h6" sx={{ fontFamily: "monospace" }}>
+              {newCard.number || "•••• •••• •••• ••••"}
             </Typography>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              {['Card Holder', 'Expires'].map((label, i) => (
-                <Box key={label}>
-                  <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
-                    {label}
-                  </Typography>
-                  <Typography variant="body2" sx={i === 0 ? { textTransform: 'uppercase' } : {}}>
-                    {i === 0 ? (newCard.name || '•••• ••••') : (newCard.expiry || '••/••')}
-                  </Typography>
-                </Box>
-              ))}
+            <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
+              <Box>
+                <Typography variant="caption">Card Holder</Typography>
+                <Typography>{newCard.name || "•••• ••••"}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption">Expires</Typography>
+                <Typography>{newCard.expiry || "••/••"}</Typography>
+              </Box>
             </Box>
           </Card>
-
           <Grid container spacing={2}>
-            {[
-              { name: 'number', label: 'Card number', placeholder: '1234 5678 9012 3456', maxLength: 19 },
-              { name: 'name', label: 'Name on card' },
-              { name: 'expiry', label: 'Expiration date (MM/YY)', placeholder: 'MM/YY', maxLength: 5 },
-              { name: 'cvc', label: 'CVV', placeholder: '123', type: 'password', maxLength: 3 }
-            ].map((field, i) => (
-              <Grid item xs={field.name === 'expiry' || field.name === 'cvc' ? 6 : 12} key={field.name}>
-                <TextField 
-                  fullWidth 
-                  variant="outlined" 
-                  size="small" 
-                  {...field} 
-                  value={newCard[field.name]} 
-                  onChange={handleCardInputChange} 
-                />
-              </Grid>
-            ))}
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Card Number"
+                placeholder="1234 5678 9012 3456"
+                name="number"
+                value={newCard.number}
+                onChange={handleCardChange}
+                inputProps={{ maxLength: 19 }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Name on Card"
+                name="name"
+                value={newCard.name}
+                onChange={handleCardChange}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Expiry (MM/YY)"
+                placeholder="MM/YY"
+                name="expiry"
+                value={newCard.expiry}
+                onChange={handleCardChange}
+                inputProps={{ maxLength: 5 }}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="CVV"
+                type="password"
+                placeholder="123"
+                name="cvc"
+                value={newCard.cvc}
+                onChange={handleCardChange}
+                inputProps={{ maxLength: 3 }}
+              />
+            </Grid>
           </Grid>
-
-          <Box sx={{ mt: 2, display: 'flex', alignItems: 'center' }}>
-            <LockIcon sx={{ fontSize: 16, color: 'green', mr: 1 }} />
-            <Typography variant="caption" color="text.secondary">
-              Your payment information is encrypted and secure
-            </Typography>
-          </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setPaymentDialog(false)} sx={{ color: 'text.secondary' }}>
-            Cancel
-          </Button>
+        <DialogActions>
+          <Button onClick={() => setCardDialog(false)}>Cancel</Button>
           <Button 
-            onClick={handleSaveCard} 
+            onClick={addCard}
             variant="contained"
             disabled={!newCard.number || !newCard.name || !newCard.expiry || !newCard.cvc}
           >
@@ -502,6 +488,20 @@ const ProfileSettings = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Alert Snackbar */}
+      <Snackbar
+        open={alert.open}
+        autoHideDuration={6000}
+        onClose={() => setAlert({ ...alert, open: false })}
+      >
+        <Alert
+          severity={alert.severity}
+          onClose={() => setAlert({ ...alert, open: false })}
+        >
+          {alert.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

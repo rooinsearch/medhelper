@@ -64,7 +64,7 @@ function App() {
           <Route path="/checkai" element={<CheckAI />} />
           <Route path="/clinics" element={<ClinicTests/>}/>
           <Route path="/clinics/:id" element={<ClinicDetailPage />} />
-          <Route path="/analysis-requst" element={<CatalogPage />} />
+          <Route path="/catalog-of-tests" element={<CatalogPage />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/my-tests" element={<MyTestsPage />} />
           <Route 

@@ -61,9 +61,9 @@ const ContactUs = () => {
     if (!validateForm()) return;
 
     try {
-      const response = await axios.post("http://localhost:8000/api/contact/", formData);
-      console.log("Form submitted successfully:", response.data);
       setIsSubmitted(true);
+      const response = await axios.post("http://localhost:8000/api/auth/contact/", formData);
+      console.log("Form submitted successfully:", response.data);
       setFormData({ name: "", email: "", phone: "", message: "" });
       setSnackbar({
         open: true,
@@ -81,6 +81,8 @@ const ContactUs = () => {
           severity: "error"
         });
       }
+    } finally {
+      setIsSubmitted(false);
     }
   };
 
@@ -99,26 +101,25 @@ const ContactUs = () => {
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        padding: "0", // Removed all padding
+        padding: "0",
         position: "relative",
         zIndex: 10,
-        marginTop: "-2px", // Small negative margin to close any gap with previous section
-        marginBottom: "-2px", // Small negative margin to close any gap with next section
+        marginTop: "-2px",
+        marginBottom: "-2px",
         backgroundImage: "url('/maintwo.jpg')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundAttachment: "fixed",
         backgroundRepeat: "no-repeat",
-        borderTop: "none", // Explicitly remove any border
+        borderTop: "none",
       }}
     >
-      {/* Full overlay to ensure seamless connection with adjacent sections */}
       <div style={{
         position: "absolute",
-        top: "-5px", // Extend slightly beyond the parent container
+        top: "-5px",
         left: 0,
         right: 0,
-        bottom: "-5px", // Extend slightly beyond the parent container
+        bottom: "-5px",
         backgroundImage: "url('/maintwo.jpg')",
         backgroundSize: "cover",
         backgroundPosition: "center",
@@ -127,7 +128,6 @@ const ContactUs = () => {
         zIndex: -1,
       }} />
       
-      {/* Content container with padding */}
       <div style={{
         width: "100%",
         padding: isMobile ? "40px 20px" : "40px 20px",
@@ -135,7 +135,6 @@ const ContactUs = () => {
         justifyContent: "center",
         alignItems: "center",
       }}>
-        {/* Основной контейнер формы */}
         <div style={{
           display: "flex",
           flexDirection: isMobile ? "column" : "row",
@@ -150,7 +149,6 @@ const ContactUs = () => {
           zIndex: 11,
           backdropFilter: "blur(4px)",
         }}>
-          {/* Left Section - Get in Touch */}
           <div style={{
             backgroundColor: "#001A00",
             color: "white",
@@ -193,7 +191,6 @@ const ContactUs = () => {
             </div>
           </div>
           
-          {/* Right Section - Send Us a Message */}
           <div style={{ padding: isMobile ? "25px" : "30px", width: isMobile ? "100%" : "60%", order: 1 }}>
             <h2 style={{ fontSize: isMobile ? "24px" : "28px", color: "#001A00", margin: "0 0 25px 0", fontWeight: 600 }}>Send Us a Message</h2>
             
@@ -240,19 +237,19 @@ const ContactUs = () => {
                     backgroundColor: isSubmitted 
                       ? "rgba(76, 175, 80, 0.8)" 
                       : isHovering 
-                        ? "#FFA500" // Orange color on hover
+                        ? "#FFA500"
                         : "#001A00",
                     color: "white",
                     border: "none",
                     borderRadius: "25px",
                     padding: "12px 50px",
                     fontSize: "16px",
-                    cursor: "pointer",
+                    cursor: isSubmitted ? "not-allowed" : "pointer",
                     transition: "all 0.3s ease",
                     width: isMobile ? "100%" : "auto",
                     fontWeight: 500,
-                    transform: isHovering ? "translateY(-2px)" : "translateY(0)",
-                    boxShadow: isHovering ? "0 4px 8px rgba(0,0,0,0.1)" : "none"
+                    transform: isHovering && !isSubmitted ? "translateY(-2px)" : "translateY(0)",
+                    boxShadow: isHovering && !isSubmitted ? "0 4px 8px rgba(0,0,0,0.1)" : "none"
                   }}
                   disabled={isSubmitted}
                 >
@@ -264,7 +261,6 @@ const ContactUs = () => {
         </div>
       </div>
 
-      {/* Snackbar Notification */}
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}

@@ -24,7 +24,6 @@ import {
 } from "@mui/icons-material";
 import api from "../api/axios";
 
-// Стилизованный контейнер для скролла
 const ScrollContainer = styled(Box)(({ theme }) => ({
   height: '100%',
   overflow: 'hidden',
@@ -101,9 +100,13 @@ const Notifications = ({ updateUnreadCount }) => {
       });
       
       if (refresh) {
-        setNotifications(response.data.results);
+        setNotifications(response.data.results || []);
       } else {
-        setNotifications(prev => pageNum === 1 ? response.data.results : [...prev, ...response.data.results]);
+        setNotifications(prev => 
+          pageNum === 1 
+            ? response.data.results || [] 
+            : [...prev, ...(response.data.results || [])]
+        );
       }
       
       setHasMore(response.data.next !== null);
@@ -215,10 +218,16 @@ const Notifications = ({ updateUnreadCount }) => {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   // Группировка уведомлений по дате
-  const groupByDate = (notifications) => {
+  const groupByDate = (notifs) => {
+    if (!notifs || !Array.isArray(notifs)) {
+      return {};
+    }
+    
     const groups = {};
     
-    notifications.forEach(notification => {
+    notifs.forEach(notification => {
+      if (!notification?.created_at) return;
+      
       const date = new Date(notification.created_at);
       const today = new Date();
       const yesterday = new Date(today);
@@ -386,7 +395,11 @@ const Notifications = ({ updateUnreadCount }) => {
             )}
           </Typography>
           
-          {error && notifications.length === 0 ? (
+          {loading && notifications.length === 0 ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+              <CircularProgress size={24} color="inherit" />
+            </Box>
+          ) : error && notifications.length === 0 ? (
             <Box sx={{ textAlign: 'center', p: 3, color: '#FF3B30' }}>
               <Typography variant="body2">{error}</Typography>
               <Button 
@@ -398,7 +411,7 @@ const Notifications = ({ updateUnreadCount }) => {
                 Try Again
               </Button>
             </Box>
-          ) : notifications.length === 0 && !loading ? (
+          ) : notifications.length === 0 ? (
             <Typography variant="body2" sx={{ textAlign: 'center', p: 3, color: '#004d00' }}>
               No notifications available
             </Typography>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Modal,
@@ -6,94 +7,93 @@ import {
   Button,
   Divider,
   IconButton,
-  Rating,
   TextField,
   Stack,
-  Avatar,
   Chip,
   CircularProgress,
   Snackbar,
-  Alert
+  Alert,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
 import {
-  BookmarkBorder as BookmarkBorderIcon,
-  Bookmark as BookmarkIcon,
   Close as CloseIcon,
   CalendarToday as CalendarTodayIcon,
   AccessTime as AccessTimeIcon,
   Info as InfoIcon,
-  FavoriteBorder as FavoriteBorderIcon,
-  Favorite as FavoriteIcon,
   ShoppingCart as ShoppingCartIcon,
-  ArrowForward as ArrowForwardIcon
+  Check as CheckIcon,
+  LocalHospital as HospitalIcon,
+  Science as ScienceIcon,
+  AccessTimeFilled as TimeIcon
 } from '@mui/icons-material';
-import api from '../api/axios';  
 
-const primaryColor = '#1a5f1a';
-const primaryLight = '#4a8c4a';
-const primaryDark = '#003600';
+// Colors
+const primaryColor = '#4a8c4a';
+const secondaryColor = '#001A00';
 
 const modalStyle = {
   position: 'absolute',
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
-  width: { xs: '95%', md: '80%' },
-  maxWidth: 800,
+  width: { xs: '95%', sm: '90%', md: '800px' },
   maxHeight: '90vh',
   bgcolor: 'background.paper',
   boxShadow: 24,
   borderRadius: 3,
   overflowY: 'auto',
-  p: { xs: 2, md: 4 },
-  '&:focus-visible': { outline: 'none' },
-  '&::-webkit-scrollbar': { width: '6px' },
-  '&::-webkit-scrollbar-track': { background: '#f1f1f1', borderRadius: '10px' },
+  p: { xs: 2, md: 3 },
+  '&::-webkit-scrollbar': { width: '8px' },
   '&::-webkit-scrollbar-thumb': {
-    background: primaryColor,
-    borderRadius: '10px',
-    '&:hover': { background: primaryDark }
-  },
-  scrollbarWidth: 'thin',
-  scrollbarColor: `${primaryColor} #f1f1f1`
+    backgroundColor: primaryColor,
+    borderRadius: '4px'
+  }
 };
 
+// Mock data
 const defaultTest = {
-  title: "Vitamin D (25-OH)",
-  description: "A blood test to measure vitamin D levels in your body.",
-  lab: "Invivo Clinical Labs",
-  labId: "invivo-labs",
-  price: 20000,
-  ready: "1 day",
-  rating: 4.9,
-  reviews: 3710,
-  about: "This test measures 25-hydroxyvitamin D concentration in blood...",
+  id: 1,
+  title: "Complete Blood Count (CBC)",
+  description: "A comprehensive blood test that evaluates your overall health and detects a wide range of disorders, including anemia, infection, and leukemia.",
+  lab: "BioLab Diagnostics",
+  price: 4500,
+  ready: "1-2 days",
+  about: `The Complete Blood Count (CBC) is one of the most commonly ordered blood tests. It provides a detailed analysis of the cellular components in your blood:
+
+• White Blood Cells (WBCs): 4,500-11,000 cells/mcL
+  - Fight infections and diseases
+  - Includes neutrophils, lymphocytes, monocytes
+  
+• Red Blood Cells (RBCs): 4.5-5.9 million cells/mcL
+  - Carry oxygen throughout the body
+  - Contains hemoglobin (12-16 g/dL for women, 13-18 g/dL for men)
+  
+• Platelets: 150,000-450,000/mcL
+  - Essential for blood clotting
+  - Abnormal counts may indicate bleeding disorders
+
+This test helps diagnose conditions like:
+- Anemia
+- Infections
+- Blood cancers
+- Immune system disorders`,
   preparation: [
-    "No fasting required.",
-    "Avoid vitamin D supplements 24h before test.",
-    "Drink plenty of water before the test.",
-    "Inform your doctor about any medications."
-  ],
-  relatedTests: [
-    { name: "Calcium Test", price: 20000, ready: "1 day" },
-    { name: "Parathyroid Hormone", price: 20000, ready: "1 day" },
-    { name: "Complete Blood Count", price: 25000, ready: "1 day" }
-  ],
-  reviewsData: [
-    {
-      name: "Ardak Aruzhan",
-      rating: 5,
-      text: "Painless test with quick results. The staff was very professional.",
-      date: "15 March 2025"
-    }
+    "Fasting for 8-12 hours is required (water is allowed)",
+    "Avoid strenuous exercise for 24 hours before the test",
+    "Continue taking prescribed medications unless instructed otherwise",
+    "Stay well hydrated before your blood draw",
+    "Wear loose-fitting clothing for easy access to your arm"
   ]
 };
 
-const availableDates = ['2025-04-15', '2025-04-16', '2025-04-17', '2025-04-18', '2025-04-19'];
-const availableTimes = ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
+const availableDates = ['2024-06-15', '2024-06-16', '2024-06-17', '2024-06-18'];
+const availableTimes = ['08:00', '09:30', '11:00', '13:00', '14:30', '16:00'];
 
-const TestDetailsModal = ({ open, handleClose, test = {} }) => {
-  const [isBookmarked, setIsBookmarked] = useState(false);
+const TestDetailsModal = ({ open, handleClose, test = {}, isAuthenticated }) => {
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -101,255 +101,136 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
-
+  
   const currentTest = { ...defaultTest, ...test };
 
-  const handleCloseSnackbar = (event, reason) => {
-    if (reason !== 'clickaway') setSnackbarOpen(false);
-  };
-
-  const showNotification = (message, severity = 'success') => {
-    setSnackbarMessage(message);
-    setSnackbarSeverity(severity);
-    setSnackbarOpen(true);
+  const handleTakeNow = () => {
+    if (!isAuthenticated) {
+      setSnackbarMessage('Please login to schedule a test');
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+      setTimeout(() => navigate('/login'), 1500);
+      return;
+    }
+    setActiveTab('schedule');
   };
 
   const handleAddToCart = () => {
+    if (!isAuthenticated) {
+      setSnackbarMessage('Please login to add tests to your cart');
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+      setTimeout(() => navigate('/login'), 1500);
+      return;
+    }
+
+    if (!selectedDate || !selectedTime) {
+      setSnackbarMessage('Please select date and time');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
+    }
+
     setIsLoading(true);
-    const requestData = {
-      analysis_id: currentTest.id,
-      quantity: 1,
-      scheduled_date: selectedDate, // формат YYYY-MM-DD
-      scheduled_time: selectedTime  // например, "09:00"
-    };
-    console.log("Sending POST to /cart/add/ with data:", requestData);
-    api.post('/cart/add/', requestData)
-      .then((res) => {
-        console.log("Response from /cart/add/:", res);
-        showNotification(`${currentTest.title} added to cart`);
-        setIsLoading(false);
-        setTimeout(handleClose, 1500);
-        if (window.updateCartBadge) window.updateCartBadge();
-      })
-      .catch((err) => {
-        console.error("Error adding to cart:", err);
-        showNotification("Error adding to cart", "error");
-        setIsLoading(false);
-      });
-  };
-
-  const toggleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
-    showNotification(
-      isBookmarked ? 'Removed from favorites' : 'Added to favorites',
-      isBookmarked ? 'info' : 'success'
-    );
-  };
-
-  const handleAddRelatedTest = (relatedTest) => {
-    const requestData = {
-      analysis_id: relatedTest.id || currentTest.id,
-      quantity: 1
-    };
-    console.log("Sending POST to /cart/add/ for related test with data:", requestData);
-    api.post('/cart/add/', requestData)
-      .then((res) => {
-        console.log("Response from related test add:", res);
-        showNotification(`${relatedTest.name} added to cart`);
-        if (window.updateCartBadge) window.updateCartBadge();
-      })
-      .catch((err) => {
-        console.error("Error adding related test:", err);
-        showNotification("Error adding test", "error");
-      });
+    setTimeout(() => {
+      setSnackbarMessage(`${currentTest.title} added to cart`);
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      setIsLoading(false);
+      setTimeout(handleClose, 1500);
+    }, 1000);
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
+    const options = { weekday: 'short', day: 'numeric', month: 'long' };
+    return new Date(dateString).toLocaleDateString('en-US', options);
   };
 
-  const navigateToLabPage = () => {
-    showNotification(`Opening ${currentTest.lab} page`, 'info');
-  };
-
-  const commonButtonStyle = {
-    borderColor: primaryLight,
-    color: primaryColor,
-    '&:hover': {
-      borderColor: primaryColor,
-      backgroundColor: `${primaryLight}10`
-    }
-  };
-
-  const tabButtonStyle = (tab) => ({
-    borderBottom: activeTab === tab ? '2px solid' : 'none',
-    borderColor: primaryColor,
-    borderRadius: 0,
-    fontWeight: activeTab === tab ? 'bold' : 'normal',
-    color: activeTab === tab ? primaryColor : 'text.primary',
-    '&:hover': { backgroundColor: `${primaryLight}08` }
-  });
-
-  const renderDetailsTab = () => (
-    <>
-      <Typography paragraph sx={{ lineHeight: 1.7 }}>{currentTest.description}</Typography>
-      <Box sx={{
-        bgcolor: 'rgba(0, 0, 0, 0.03)',
-        p: 3,
-        borderRadius: 2,
-        borderLeft: `4px solid ${primaryColor}`,
-        mb: 3
-      }}>
-        <Typography variant="subtitle1" fontWeight="bold" mb={1}>About This Test</Typography>
-        <Typography paragraph sx={{ lineHeight: 1.7 }}>{currentTest.about}</Typography>
-      </Box>
-      <Typography variant="subtitle1" fontWeight="bold" mt={3} mb={1}>Preparation Instructions</Typography>
-      <Box
-        component="ul"
-        sx={{
-          pl: 2, mb: 3,
-          '& li': { mb: 1.5, pl: 1, lineHeight: 1.6 }
-        }}
-      >
-        {currentTest.preparation.map((item, i) => (
-          <Box component="li" key={i}>
-            <Typography variant="body2">{item}</Typography>
-          </Box>
-        ))}
-      </Box>
-      <Divider sx={{ my: 2 }} />
-      <Typography variant="subtitle1" fontWeight="bold" mt={3} mb={2}>
-        Frequently Booked Together
-      </Typography>
-      <Stack spacing={2}>
-        {currentTest.relatedTests.map((test, i) => (
-          <Box
-            key={i}
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-            p={2}
-            sx={{
-              bgcolor: 'rgba(0, 0, 0, 0.02)',
-              borderRadius: 1,
-              border: '1px solid rgba(0, 0, 0, 0.05)',
-              '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.05)', cursor: 'pointer' }
-            }}
-          >
-            <Box>
-              <Typography fontWeight="bold">{test.name}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Results in {test.ready}
-              </Typography>
-            </Box>
-            <Box display="flex" alignItems="center" gap={2}>
-              <Typography fontWeight="bold" sx={{ color: primaryColor }}>
-                {test.price.toLocaleString()} ₸
-              </Typography>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => handleAddRelatedTest(test)}
-                sx={commonButtonStyle}
-              >
-                Add
-              </Button>
-            </Box>
-          </Box>
-        ))}
-      </Stack>
-    </>
-  );
-
-  const renderReviewsTab = () => (
-    <Box>
-      {currentTest.reviewsData && currentTest.reviewsData.length > 0 ? (
-        currentTest.reviewsData.map((review, i) => (
-          <Box
-            key={i}
-            mb={3}
-            p={3}
-            bgcolor="rgba(0, 0, 0, 0.03)"
-            borderRadius={2}
-            borderLeft={`3px solid ${primaryColor}`}
-          >
-            <Box display="flex" justifyContent="space-between" mb={1}>
-              <Box display="flex" alignItems="center" gap={1.5}>
-                <Avatar sx={{
-                  width: 42,
-                  height: 42,
-                  bgcolor: `hsl(${i * 70}, 50%, 50%)`,
-                  color: 'white'
-                }}>
-                  {review.name.charAt(0)}
-                </Avatar>
-                <Box>
-                  <Typography fontWeight="bold">{review.name}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {review.date}
-                  </Typography>
-                </Box>
-              </Box>
-              <Rating
-                value={review.rating}
-                readOnly
-                precision={0.5}
-                size="small"
-                sx={{ color: primaryColor }}
-              />
-            </Box>
-            <Typography sx={{ mt: 1.5, lineHeight: 1.7 }}>
-              {review.text}
-            </Typography>
-          </Box>
-        ))
-      ) : (
-        <Typography variant="body1" textAlign="center" p={4}>
-          No reviews available yet.
+  const DetailSection = ({ title, children, icon }) => (
+    <Box sx={{ mb: 3 }}>
+      <Box display="flex" alignItems="center" mb={1.5}>
+        {React.cloneElement(icon, { sx: { color: primaryColor } })}
+        <Typography variant="h6" fontWeight="bold" sx={{ ml: 1, color: primaryColor }}>
+          {title}
         </Typography>
-      )}
-      {currentTest.reviews > 0 && (
-        <Box textAlign="center" mt={4}>
-          <Button variant="outlined" endIcon={<ArrowForwardIcon />} sx={commonButtonStyle}>
-            See All {currentTest.reviews.toLocaleString()} Reviews
-          </Button>
-        </Box>
-      )}
+      </Box>
+      {children}
     </Box>
   );
 
+  const renderDetailsTab = () => (
+    <>
+      <DetailSection
+        title="Test Description"
+        icon={<ScienceIcon />}
+      >
+        <Typography paragraph sx={{ lineHeight: 1.7, fontSize: '1.05rem' }}>
+          {currentTest.description}
+        </Typography>
+      </DetailSection>
+
+      <DetailSection
+        title="About This Test"
+        icon={<InfoIcon />}
+      >
+        <Box
+          sx={{
+            bgcolor: 'rgba(0, 26, 0, 0.05)',
+            p: 3,
+            borderRadius: 2,
+            borderLeft: `4px solid ${secondaryColor}`
+          }}
+        >
+          <Typography sx={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>
+            {currentTest.about}
+          </Typography>
+        </Box>
+      </DetailSection>
+
+      <DetailSection
+        title="Preparation Instructions"
+        icon={<HospitalIcon />}
+      >
+        <List dense>
+          {currentTest.preparation.map((item, index) => (
+            <ListItem key={index} sx={{ py: 0.5 }}>
+              <ListItemIcon sx={{ minWidth: 32 }}>
+                <CheckIcon fontSize="small" sx={{ color: secondaryColor }} />
+              </ListItemIcon>
+              <ListItemText primary={item} />
+            </ListItem>
+          ))}
+        </List>
+      </DetailSection>
+    </>
+  );
+
   const renderScheduleTab = () => (
-    <Box
-      p={3}
-      bgcolor="rgba(0, 0, 0, 0.03)"
-      borderRadius={2}
-      borderLeft={`4px solid ${primaryColor}`}
-    >
-      <Typography variant="subtitle1" fontWeight="bold" mb={3}>
-        Choose Date and Time
+    <Box>
+      <Typography variant="h6" fontWeight="bold" mb={3} sx={{ color: primaryColor }}>
+        Schedule Your Test
       </Typography>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={4}>
+
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={3}>
         <TextField
           select
           fullWidth
           label="Date"
           value={selectedDate}
           onChange={(e) => setSelectedDate(e.target.value)}
+          SelectProps={{ native: true }}
           InputProps={{
-            startAdornment: <CalendarTodayIcon color="action" sx={{ mr: 1 }} />
+            startAdornment: <CalendarTodayIcon sx={{ mr: 1, color: secondaryColor }} />
           }}
-          SelectProps={{ native: true, sx: { '& option': { padding: '10px' } } }}
           sx={{
-            '& .MuiOutlinedInput-root.Mui-focused fieldset': { borderColor: primaryColor },
-            '& .MuiInputLabel-root.Mui-focused': { color: primaryColor }
+            '& .MuiOutlinedInput-root.Mui-focused fieldset': {
+              borderColor: primaryColor
+            },
+            '& .MuiInputLabel-root.Mui-focused': {
+              color: primaryColor
+            }
           }}
-          helperText="Select available date"
         >
           <option value="">Select date</option>
           {availableDates.map(date => (
@@ -358,6 +239,7 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
             </option>
           ))}
         </TextField>
+
         <TextField
           select
           fullWidth
@@ -365,15 +247,18 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
           value={selectedTime}
           disabled={!selectedDate}
           onChange={(e) => setSelectedTime(e.target.value)}
+          SelectProps={{ native: true }}
           InputProps={{
-            startAdornment: <AccessTimeIcon color="action" sx={{ mr: 1 }} />
+            startAdornment: <TimeIcon sx={{ mr: 1, color: secondaryColor }} />
           }}
-          SelectProps={{ native: true, sx: { '& option': { padding: '10px' } } }}
           sx={{
-            '& .MuiOutlinedInput-root.Mui-focused fieldset': { borderColor: primaryColor },
-            '& .MuiInputLabel-root.Mui-focused': { color: primaryColor }
+            '& .MuiOutlinedInput-root.Mui-focused fieldset': {
+              borderColor: primaryColor
+            },
+            '& .MuiInputLabel-root.Mui-focused': {
+              color: primaryColor
+            }
           }}
-          helperText="Select preferred time slot"
         >
           <option value="">Select time</option>
           {availableTimes.map(time => (
@@ -381,149 +266,146 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
           ))}
         </TextField>
       </Stack>
-      <Box
-        bgcolor="white"
-        p={3}
-        borderRadius={2}
-        mb={3}
-        boxShadow="0px 2px 8px rgba(0, 0, 0, 0.1)"
-      >
-        <Typography variant="subtitle2" color="text.secondary" mb={2}>
-          Order Summary
+
+      <Box sx={{ p: 2, bgcolor: '#f9f9f9', borderRadius: 2, mb: 3 }}>
+        <Typography variant="subtitle1" fontWeight="bold" mb={2} sx={{ color: secondaryColor }}>
+          Appointment Summary
         </Typography>
-        {['Test', 'Lab', 'Date', 'Time'].map((label) => (
-          <Box key={label} display="flex" justifyContent="space-between" mb={1.5}>
-            <Typography>{label}:</Typography>
+        
+        <Box sx={{ '& > div': { display: 'flex', justifyContent: 'space-between', mb: 1.5 } }}>
+          <Box>
+            <Typography>Test:</Typography>
+            <Typography fontWeight="medium">{currentTest.title}</Typography>
+          </Box>
+          <Box>
+            <Typography>Lab:</Typography>
+            <Typography fontWeight="medium">{currentTest.lab}</Typography>
+          </Box>
+          <Box>
+            <Typography>Date:</Typography>
             <Typography fontWeight="medium">
-              {label === 'Test' ? currentTest.title :
-               label === 'Lab' ? currentTest.lab :
-               label === 'Date' ? (selectedDate ? formatDate(selectedDate) : '—') :
-               selectedTime || '—'}
+              {selectedDate ? formatDate(selectedDate) : 'Not selected'}
             </Typography>
           </Box>
-        ))}
+          <Box>
+            <Typography>Time:</Typography>
+            <Typography fontWeight="medium">
+              {selectedTime || 'Not selected'}
+            </Typography>
+          </Box>
+        </Box>
+
         <Divider sx={{ my: 2 }} />
+
         <Box display="flex" justifyContent="space-between">
-          <Typography fontWeight="bold">Total:</Typography>
-          <Typography fontWeight="bold" sx={{ color: primaryColor }}>
+          <Typography variant="h6">Price:</Typography>
+          <Typography variant="h6" fontWeight="bold" color={primaryColor}>
             {currentTest.price.toLocaleString()} ₸
           </Typography>
         </Box>
       </Box>
+
       <Button
         variant="contained"
         size="large"
         fullWidth
         onClick={handleAddToCart}
         disabled={!selectedDate || !selectedTime || isLoading}
-        startIcon={isLoading ? <CircularProgress size={24} color="inherit" /> : <ShoppingCartIcon />}
+        startIcon={isLoading ? <CircularProgress size={24} /> : <ShoppingCartIcon />}
         sx={{
           py: 1.5,
           backgroundColor: primaryColor,
-          '&:hover': { backgroundColor: primaryDark },
-          '&:disabled': { backgroundColor: '#e0e0e0' }
+          '&:hover': { backgroundColor: secondaryColor },
+          '&:disabled': { opacity: 0.7 }
         }}
       >
-        {isLoading ? 'Processing...' : 'Add to Cart'}
+        {isLoading ? 'Adding...' : 'Add to Cart'}
       </Button>
     </Box>
   );
 
   return (
     <>
-      <Modal open={open} onClose={handleClose} aria-labelledby="test-modal">
+      <Modal open={open} onClose={handleClose}>
         <Box sx={modalStyle}>
-          <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+          <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
             <Box>
-              <Typography variant="h5" fontWeight="bold" gutterBottom>
+              <Typography variant="h5" fontWeight="bold" color={primaryColor}>
                 {currentTest.title}
               </Typography>
-              <Box display="flex" alignItems="center" flexWrap="wrap" gap={1} mb={2}>
-                <Rating
-                  value={currentTest.rating}
-                  precision={0.1}
-                  readOnly
-                  size="small"
-                  sx={{ color: primaryColor }}
-                />
-                <Typography variant="body2" color="text.secondary">
-                  {currentTest.rating} ({currentTest.reviews.toLocaleString()} reviews)
-                </Typography>
+              <Box display="flex" alignItems="center" flexWrap="wrap" gap={1} mt={1}>
                 <Chip
                   label={currentTest.lab}
                   size="small"
                   variant="outlined"
-                  sx={{ ...commonButtonStyle, cursor: 'pointer' }}
-                  icon={<InfoIcon fontSize="small" sx={{ color: primaryColor }} />}
-                  onClick={navigateToLabPage}
-                  clickable
+                  sx={{ borderColor: primaryColor, color: primaryColor }}
                 />
               </Box>
             </Box>
-            <Box>
-              <IconButton onClick={toggleBookmark} sx={{ color: isBookmarked ? primaryColor : 'inherit' }}>
-                {isBookmarked ? <BookmarkIcon /> : <BookmarkBorderIcon />}
-              </IconButton>
-              <IconButton onClick={handleClose}>
-                <CloseIcon />
-              </IconButton>
-            </Box>
+            <IconButton onClick={handleClose} sx={{ color: 'text.secondary' }}>
+              <CloseIcon />
+            </IconButton>
           </Box>
 
           <Divider sx={{ my: 2 }} />
 
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
             <Box>
-              <Typography variant="h5" sx={{ color: primaryColor }} fontWeight="bold">
+              <Typography variant="h5" color={primaryColor} fontWeight="bold">
                 {currentTest.price.toLocaleString()} ₸
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Results ready in {currentTest.ready}
+              <Typography variant="body2" display="flex" alignItems="center">
+                <TimeIcon fontSize="small" sx={{ mr: 0.5, color: primaryColor }} />
+                Turnaround: {currentTest.ready}
               </Typography>
             </Box>
-            <Box display="flex" gap={2}>
-              <Button
-                variant="outlined"
-                onClick={toggleBookmark}
-                sx={commonButtonStyle}
-                startIcon={
-                  isBookmarked
-                    ? <FavoriteIcon sx={{ color: primaryColor }} />
-                    : <FavoriteBorderIcon />
-                }
-              >
-                {isBookmarked ? 'Saved' : 'Save'}
-              </Button>
-              <Button
-                variant="contained"
-                onClick={() => setActiveTab('schedule')}
-                startIcon={<CalendarTodayIcon />}
-                sx={{
-                  backgroundColor: primaryColor,
-                  '&:hover': { backgroundColor: primaryDark }
-                }}
-              >
-                Book Now
-              </Button>
-            </Box>
+            <Button
+              variant="contained"
+              onClick={handleTakeNow}
+              sx={{
+                backgroundColor: primaryColor,
+                '&:hover': { backgroundColor: secondaryColor }
+              }}
+            >
+              Take Now
+            </Button>
           </Box>
 
-          <Divider sx={{ mb: 3 }} />
-
-          <Box display="flex" gap={2} mb={3} borderBottom={1} borderColor="divider">
-            <Button variant="text" onClick={() => setActiveTab('details')} sx={tabButtonStyle('details')}>
-              Details
-            </Button>
-            <Button variant="text" onClick={() => setActiveTab('reviews')} sx={tabButtonStyle('reviews')}>
-              Reviews ({currentTest.reviews.toLocaleString()})
-            </Button>
-            <Button variant="text" onClick={() => setActiveTab('schedule')} sx={tabButtonStyle('schedule')}>
-              Schedule
-            </Button>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+            <Box display="flex">
+              <Button
+                onClick={() => setActiveTab('details')}
+                sx={{
+                  ...(activeTab === 'details' && {
+                    color: primaryColor,
+                    borderBottom: `2px solid ${primaryColor}`,
+                    fontWeight: 'bold'
+                  }),
+                  mr: 2,
+                  textTransform: 'none',
+                  color: 'text.primary'
+                }}
+              >
+                Details
+              </Button>
+              <Button
+                onClick={() => setActiveTab('schedule')}
+                sx={{
+                  ...(activeTab === 'schedule' && {
+                    color: primaryColor,
+                    borderBottom: `2px solid ${primaryColor}`,
+                    fontWeight: 'bold'
+                  }),
+                  textTransform: 'none',
+                  color: 'text.primary'
+                }}
+              >
+                Schedule
+              </Button>
+            </Box>
           </Box>
 
           {activeTab === 'details' && renderDetailsTab()}
-          {activeTab === 'reviews' && renderReviewsTab()}
           {activeTab === 'schedule' && renderScheduleTab()}
         </Box>
       </Modal>
@@ -531,18 +413,10 @@ const TestDetailsModal = ({ open, handleClose, test = {} }) => {
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}
-        onClose={handleCloseSnackbar}
+        onClose={() => setSnackbarOpen(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert
-          onClose={handleCloseSnackbar}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{
-            width: '100%',
-            backgroundColor: snackbarSeverity === 'success' ? primaryColor : undefined
-          }}
-        >
+        <Alert severity={snackbarSeverity} sx={{ width: '100%' }}>
           {snackbarMessage}
         </Alert>
       </Snackbar>

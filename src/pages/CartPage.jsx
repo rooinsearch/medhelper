@@ -271,7 +271,7 @@ const CartPage = () => {
                                 color="text.secondary"
                                 mt={1}
                               >
-                                {item.hospital?.name || "Unknown lab"}
+                                {item.analysis.lab || "Unknown lab"}
                               </Typography>
                             )}
                           </TableCell>
@@ -279,7 +279,7 @@ const CartPage = () => {
                           {!isMobile && (
                             <TableCell align="center">
                               <Typography variant="body2">
-                                {item.hospital?.name || "Unknown lab"}
+                                {item.analysis.lab || "Unknown lab"}
                               </Typography>
                             </TableCell>
                           )}
