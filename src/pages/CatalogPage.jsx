@@ -6,14 +6,12 @@ import {
   Collapse
 } from '@mui/material';
 import {
-  BookmarkBorder, ShoppingCart, Search,
+  Search,
   KeyboardArrowDown, KeyboardArrowUp
 } from '@mui/icons-material';
 
 import api from '../api/axios';
-
 import TestDetailsModal from '../components/TestDetailsModal';
-
 
 const medicalBackground = `
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
@@ -181,6 +179,7 @@ const CatalogPage = () => {
   const [testData, setTestData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [cartItems, setCartItems] = useState([]);
 
   // Фильтры
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -228,6 +227,24 @@ const CatalogPage = () => {
         setLoading(false);
       });
   }, [page]);
+
+  // Добавляем функцию fetchCart
+  const fetchCart = () => {
+    // Здесь должен быть код для загрузки корзины с сервера
+    // Например:
+    api.get('/cart/')
+      .then(response => {
+        setCartItems(response.data);
+      })
+      .catch(err => {
+        console.error('Error fetching cart:', err);
+      });
+  };
+
+  // Можно вызвать fetchCart при загрузке компонента
+  useEffect(() => {
+    fetchCart();
+  }, []);
 
   const handleTestClick = (test) => {
     setSelectedTest(test);
@@ -457,14 +474,6 @@ const CatalogPage = () => {
                           color="success"
                           sx={{ color: 'white', mb: 1 }}
                         />
-                        <IconButton
-                          size="small"
-                          onClick={e => {
-                            e.stopPropagation();
-                          }}
-                        >
-                          <BookmarkBorder fontSize="small" />
-                        </IconButton>
                       </Box>
                       <Typography variant="subtitle1" fontWeight={600} sx={{ mt: 1 }}>
                         {test.title}
@@ -489,15 +498,6 @@ const CatalogPage = () => {
                     </CardContent>
                     <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
                       <Typography fontWeight="bold">{test.price.toLocaleString()} ₸</Typography>
-                      <IconButton
-                        color="primary"
-                        size="small"
-                        onClick={e => {
-                          e.stopPropagation();
-                        }}
-                      >
-                        <ShoppingCart fontSize="small" />
-                      </IconButton>
                     </CardActions>
                   </Card>
                 </Grid>
@@ -523,6 +523,7 @@ const CatalogPage = () => {
         open={modalOpen}
         handleClose={handleCloseModal}
         test={selectedTest}
+        onCartUpdate={fetchCart}
       />
     </Box>
   );

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Modal,
@@ -29,6 +28,7 @@ import {
   Science as ScienceIcon,
   AccessTimeFilled as TimeIcon
 } from '@mui/icons-material';
+import api from '../api/axios';
 
 // Colors
 const primaryColor = '#4a8c4a';
@@ -53,47 +53,22 @@ const modalStyle = {
   }
 };
 
-// Mock data
-const defaultTest = {
-  id: 1,
-  title: "Complete Blood Count (CBC)",
-  description: "A comprehensive blood test that evaluates your overall health and detects a wide range of disorders, including anemia, infection, and leukemia.",
-  lab: "BioLab Diagnostics",
-  price: 4500,
-  ready: "1-2 days",
-  about: `The Complete Blood Count (CBC) is one of the most commonly ordered blood tests. It provides a detailed analysis of the cellular components in your blood:
-
-• White Blood Cells (WBCs): 4,500-11,000 cells/mcL
-  - Fight infections and diseases
-  - Includes neutrophils, lymphocytes, monocytes
-  
-• Red Blood Cells (RBCs): 4.5-5.9 million cells/mcL
-  - Carry oxygen throughout the body
-  - Contains hemoglobin (12-16 g/dL for women, 13-18 g/dL for men)
-  
-• Platelets: 150,000-450,000/mcL
-  - Essential for blood clotting
-  - Abnormal counts may indicate bleeding disorders
-
-This test helps diagnose conditions like:
-- Anemia
-- Infections
-- Blood cancers
-- Immune system disorders`,
-  preparation: [
-    "Fasting for 8-12 hours is required (water is allowed)",
-    "Avoid strenuous exercise for 24 hours before the test",
-    "Continue taking prescribed medications unless instructed otherwise",
-    "Stay well hydrated before your blood draw",
-    "Wear loose-fitting clothing for easy access to your arm"
-  ]
-};
-
 const availableDates = ['2024-06-15', '2024-06-16', '2024-06-17', '2024-06-18'];
 const availableTimes = ['08:00', '09:30', '11:00', '13:00', '14:30', '16:00'];
 
-const TestDetailsModal = ({ open, handleClose, test = {}, isAuthenticated }) => {
-  const navigate = useNavigate();
+// Default test object with all necessary properties
+const defaultTest = {
+  id: null,
+  title: '',
+  description: '',
+  about: '',
+  preparation: [],
+  price: 0,
+  lab: '',
+  ready: ''
+};
+
+const TestDetailsModal = ({ open, handleClose, test, onCartUpdate }) => {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -102,43 +77,58 @@ const TestDetailsModal = ({ open, handleClose, test = {}, isAuthenticated }) => 
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   
-  const currentTest = { ...defaultTest, ...test };
+  // Use the provided test or fallback to defaultTest
+  const currentTest = test || defaultTest;
 
   const handleTakeNow = () => {
-    if (!isAuthenticated) {
-      setSnackbarMessage('Please login to schedule a test');
-      setSnackbarSeverity('warning');
-      setSnackbarOpen(true);
-      setTimeout(() => navigate('/login'), 1500);
-      return;
-    }
     setActiveTab('schedule');
   };
 
-  const handleAddToCart = () => {
-    if (!isAuthenticated) {
-      setSnackbarMessage('Please login to add tests to your cart');
-      setSnackbarSeverity('warning');
-      setSnackbarOpen(true);
-      setTimeout(() => navigate('/login'), 1500);
-      return;
-    }
-
+  const handleAddToCart = async () => {
     if (!selectedDate || !selectedTime) {
       setSnackbarMessage('Please select date and time');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
       return;
     }
-
+  
+    if (!currentTest.id) {
+      setSnackbarMessage('Invalid test selected');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
+    }
+  
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      // Разделяем дату и время перед отправкой
+      const scheduled_date = selectedDate; // "2024-06-18"
+      const scheduled_time = `${selectedTime}:00`; // "08:00:00"
+  
+      await api.post('/cart/add/', {
+        analysis_id: currentTest.id,
+        scheduled_date,  // Отправляем только дату
+        scheduled_time,  // Отправляем только время
+        quantity: 1
+      });
+      
       setSnackbarMessage(`${currentTest.title} added to cart`);
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
+      
+      if (onCartUpdate) {
+        await onCartUpdate();
+      }
+      
+      handleClose();
+    } catch (err) {
+      console.error('Add to cart error:', err);
+      setSnackbarMessage(err.response?.data?.message || 'Failed to add to cart');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
       setIsLoading(false);
-      setTimeout(handleClose, 1500);
-    }, 1000);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -193,7 +183,7 @@ const TestDetailsModal = ({ open, handleClose, test = {}, isAuthenticated }) => 
         icon={<HospitalIcon />}
       >
         <List dense>
-          {currentTest.preparation.map((item, index) => (
+          {Array.isArray(currentTest.preparation) && currentTest.preparation.map((item, index) => (
             <ListItem key={index} sx={{ py: 0.5 }}>
               <ListItemIcon sx={{ minWidth: 32 }}>
                 <CheckIcon fontSize="small" sx={{ color: secondaryColor }} />
@@ -300,7 +290,7 @@ const TestDetailsModal = ({ open, handleClose, test = {}, isAuthenticated }) => 
         <Box display="flex" justifyContent="space-between">
           <Typography variant="h6">Price:</Typography>
           <Typography variant="h6" fontWeight="bold" color={primaryColor}>
-            {currentTest.price.toLocaleString()} ₸
+            {(currentTest.price || 0).toLocaleString()} ₸
           </Typography>
         </Box>
       </Box>
@@ -310,7 +300,7 @@ const TestDetailsModal = ({ open, handleClose, test = {}, isAuthenticated }) => 
         size="large"
         fullWidth
         onClick={handleAddToCart}
-        disabled={!selectedDate || !selectedTime || isLoading}
+        disabled={!selectedDate || !selectedTime || isLoading || !currentTest.id}
         startIcon={isLoading ? <CircularProgress size={24} /> : <ShoppingCartIcon />}
         sx={{
           py: 1.5,
@@ -323,6 +313,8 @@ const TestDetailsModal = ({ open, handleClose, test = {}, isAuthenticated }) => 
       </Button>
     </Box>
   );
+
+  if (!open) return null;
 
   return (
     <>
@@ -352,7 +344,7 @@ const TestDetailsModal = ({ open, handleClose, test = {}, isAuthenticated }) => 
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
             <Box>
               <Typography variant="h5" color={primaryColor} fontWeight="bold">
-                {currentTest.price.toLocaleString()} ₸
+                {(currentTest.price || 0).toLocaleString()} ₸
               </Typography>
               <Typography variant="body2" display="flex" alignItems="center">
                 <TimeIcon fontSize="small" sx={{ mr: 0.5, color: primaryColor }} />

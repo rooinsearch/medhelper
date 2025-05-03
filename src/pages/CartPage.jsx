@@ -29,7 +29,8 @@ import {
   Save as SaveIcon,
   ShoppingCart as CartIcon,
   ArrowBack as ArrowBackIcon,
-  CheckCircle as CheckCircleIcon
+  CheckCircle as CheckCircleIcon,
+  Refresh as RefreshIcon
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
@@ -65,6 +66,7 @@ const CartPage = () => {
     try {
       const { data } = await api.get("/cart/");
       setCart(data);
+      setError("");
     } catch (err) {
       console.error("Cart load error:", err);
       setError("Failed to load cart. Please try again later.");
@@ -75,6 +77,11 @@ const CartPage = () => {
 
   useEffect(() => {
     fetchCart();
+    
+    // Добавляем интервал для периодического обновления корзины
+    const interval = setInterval(fetchCart, 30000); // Обновляем каждые 30 секунд
+    
+    return () => clearInterval(interval);
   }, []);
 
   const handleUpdateQuantity = async (id) => {
@@ -87,7 +94,7 @@ const CartPage = () => {
       await api.patch(`/cart/item/${id}/`, { quantity: qty });
       setSnackbar({ open: true, message: "Quantity updated", severity: "success" });
       setEditingItemId(null);
-      fetchCart();
+      await fetchCart(); // Ждем обновления корзины
     } catch (err) {
       console.error("Update quantity error:", err);
       setSnackbar({ open: true, message: "Update failed", severity: "error" });
@@ -103,7 +110,7 @@ const CartPage = () => {
         severity: "success",
         icon: <CheckCircleIcon fontSize="inherit" />
       });
-      fetchCart();
+      await fetchCart(); // Ждем обновления корзины
     } catch (err) {
       console.error("Remove item error:", err);
       setSnackbar({ open: true, message: "Remove failed", severity: "error" });
@@ -193,6 +200,9 @@ const CartPage = () => {
           >
             <CartIcon color="action" />
           </Badge>
+          <IconButton onClick={fetchCart} sx={{ ml: 'auto', color: colors.primary }}>
+            <RefreshIcon />
+          </IconButton>
         </Stack>
 
         {isCartEmpty ? (
