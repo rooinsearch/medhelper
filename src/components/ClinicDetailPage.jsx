@@ -35,7 +35,6 @@ import {
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 
-// Styled components
 const GradientPaper = styled(Paper)(({ theme }) => ({
   background: 'linear-gradient(135deg, #004D00 0%, #001A00 100%)',
   color: theme.palette.common.white,
@@ -129,7 +128,7 @@ const ClinicDetailPage = () => {
           api.get('/analysis/hospital-reviews/', { params: { hospital: id } })
         ]);
 
-        // Normalize data to arrays
+      
         const analysesData = analysisRes.data;
         const hospitalsData = hospitalsRes.data;
         const reviewsData = reviewsRes.data;
@@ -246,7 +245,7 @@ const ClinicDetailPage = () => {
         </Stack>
       </GradientPaper>
 
-      {/* Address & Hours */}
+     
       <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3, borderRadius: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
           <LocationIcon color="primary" /> Address & Hours
@@ -266,7 +265,7 @@ const ClinicDetailPage = () => {
         </Grid>
       </Paper>
 
-      {/* Available Tests */}
+     
       <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3, borderRadius: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
           <ClinicIcon color="primary" /> Available Tests
@@ -293,13 +292,13 @@ const ClinicDetailPage = () => {
         </Grid>
       </Paper>
 
-      {/* Patient Reviews */}
+      
       <Paper sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
           <StarIcon color="primary" /> Patient Reviews
         </Typography>
 
-        {/* New Review Form */}
+        
         <Paper sx={{ p: 2, mb: 3, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.02)' }}>
           <Typography sx={{ mb: 2, fontWeight: 600 }}>Leave Your Review</Typography>
           <Box component="form" onSubmit={submitReview}>
@@ -342,7 +341,7 @@ const ClinicDetailPage = () => {
           </Box>
         </Paper>
 
-        {/* Existing Reviews */}
+       
         {reviews.length > 0 ? (
           reviews.map(review => (
             <ReviewCard key={review.id} elevation={2}>

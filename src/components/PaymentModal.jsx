@@ -22,7 +22,6 @@ import MastercardLogo from "../assets/mastercard.svg";
 import VisaLogo from "../assets/visa.svg";
 import api from "../api/axios";
 
-/* ---------- transition ---------- */
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
@@ -42,7 +41,6 @@ export default function PaymentModal({ open, onClose, cart, onSuccess, onError }
   });
   const [saving, setSaving] = useState(false);
 
-  /* ---------- helpers ---------- */
   const formatCardNumber = (value) =>
     value
       .replace(/[^0-9]/g, "")
@@ -56,7 +54,7 @@ export default function PaymentModal({ open, onClose, cart, onSuccess, onError }
     setForm((p) => ({ ...p, [name]: v }));
   };
 
-  /* ---------- front validation ---------- */
+ 
   const num = (v) => parseInt(v || "0", 10);
 
   const isValidMonth = () => {
@@ -82,7 +80,7 @@ export default function PaymentModal({ open, onClose, cart, onSuccess, onError }
 
   const formValid = isCardFilled() && isValidMonth() && isValidYear() && isDateInFuture() && isCvcValid();
 
-  /* ---------- payload ---------- */
+
   const clean = {
     ...form,
     card_number: form.card_number.replace(/\s/g, ""),
@@ -103,7 +101,7 @@ export default function PaymentModal({ open, onClose, cart, onSuccess, onError }
     }
   };
 
-  /* ---------- card preview ---------- */
+  
   const CardPreview = () => (
     <Box
       sx={{
@@ -151,7 +149,7 @@ export default function PaymentModal({ open, onClose, cart, onSuccess, onError }
         }
       }}
     >
-      {/* Header */}
+      
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 2.5, bgcolor: "success.main", color: "common.white" }}>
         <DialogTitle sx={{ p: 0, typography: "h6" }}>
           Payment {cart ? `— ${cart.total_price.toLocaleString()} ₸` : ""}

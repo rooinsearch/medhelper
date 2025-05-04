@@ -121,7 +121,7 @@ const allCategories = [
 
 const turnaroundTimes = ['Within 1 day', '1-3 days', 'More than 3 days'];
 
-/** Компонент фильтра — оставляем дизайн как есть */
+
 const FilterSection = ({ title, items, selected, onChange, color = 'success' }) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -181,7 +181,7 @@ const CatalogPage = () => {
   const [error, setError] = useState(null);
   const [cartItems, setCartItems] = useState([]);
 
-  // Фильтры
+
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedLabs, setSelectedLabs] = useState([]);
   const [selectedTurnaround, setSelectedTurnaround] = useState([]);
@@ -190,7 +190,7 @@ const CatalogPage = () => {
   const [sortOrder, setSortOrder] = useState('priceAsc');
   const [page, setPage] = useState(1);
 
-  // Модалка
+
   const [selectedTest, setSelectedTest] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const itemsPerPage = 9;
@@ -201,7 +201,6 @@ const CatalogPage = () => {
 
     api.get('/analysis/', { params: { page } })
       .then((response) => {
-        // Если ответ с пагинацией, берем results, иначе сразу data
         const list = Array.isArray(response.data)
           ? response.data
           : response.data.results || [];
@@ -228,10 +227,9 @@ const CatalogPage = () => {
       });
   }, [page]);
 
-  // Добавляем функцию fetchCart
+
   const fetchCart = () => {
-    // Здесь должен быть код для загрузки корзины с сервера
-    // Например:
+
     api.get('/cart/')
       .then(response => {
         setCartItems(response.data);
@@ -241,7 +239,6 @@ const CatalogPage = () => {
       });
   };
 
-  // Можно вызвать fetchCart при загрузке компонента
   useEffect(() => {
     fetchCart();
   }, []);
@@ -277,7 +274,6 @@ const CatalogPage = () => {
     setPage(1);
   };
 
-  // Фильтрация, сортировка, пагинация...
   const filtered = testData.filter(test => {
     const byCat = !selectedCategories.length || selectedCategories.includes(test.category);
     const byLab = !selectedLabs.length || selectedLabs.includes(test.lab);

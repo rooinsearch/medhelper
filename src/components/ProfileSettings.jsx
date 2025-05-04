@@ -6,21 +6,23 @@ import {
 } from "@mui/material";
 import { Edit, Save, Lock } from "@mui/icons-material";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
-// Цвета из оригинального дизайна
+
 const primaryColor = '#001A00';
 const secondaryColor = '#4a8c4a';
+
 
 const api = axios.create({
   baseURL: "http://localhost:8000/api",
   headers: {
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${localStorage.getItem('access_token')}`
+    "Content-Type": "application/json"
   },
   withCredentials: true
 });
 
 const ProfileSettings = () => {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState({
     first_name: "",
     last_name: "",
@@ -45,6 +47,27 @@ const ProfileSettings = () => {
     severity: "info"
   });
 
+
+  api.interceptors.request.use(config => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
+
+ 
+  api.interceptors.response.use(
+    response => response,
+    async error => {
+      if (error.response?.status === 401) {
+        localStorage.removeItem('accessToken');
+        navigate('/login');
+      }
+      return Promise.reject(error);
+    }
+  );
+
   const showAlert = (message, severity = "info") => {
     setAlert({ open: true, message, severity });
   };
@@ -52,10 +75,12 @@ const ProfileSettings = () => {
   const fetchProfile = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.post("/profile/", {});
+      const response = await api.get("/profile/");
       setProfile(response.data);
     } catch (error) {
-      showAlert(error.response?.data?.detail || "Failed to load profile", "error");
+      if (error.response?.status !== 401) {
+        showAlert(error.response?.data?.detail || "Failed to load profile", "error");
+      }
     } finally {
       setLoading(false);
     }
@@ -63,7 +88,7 @@ const ProfileSettings = () => {
 
   const updateProfile = useCallback(async () => {
     try {
-      await api.post("/profile/update/", profile);
+      await api.put("/profile/update/", profile);
       showAlert("Profile updated successfully", "success");
       setEditMode(false);
     } catch (error) {
@@ -92,8 +117,13 @@ const ProfileSettings = () => {
   };
 
   useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
     fetchProfile();
-  }, [fetchProfile]);
+  }, [fetchProfile, navigate]);
 
   const handleProfileChange = (field) => (e) => {
     setProfile({ ...profile, [field]: e.target.value });
@@ -113,7 +143,7 @@ const ProfileSettings = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header and Edit/Save buttons */}
+   
       <Box sx={{ 
         display: "flex", 
         justifyContent: "space-between", 
@@ -121,7 +151,7 @@ const ProfileSettings = () => {
         borderBottom: `1px solid ${primaryColor}`,
         pb: 2
       }}>
-        <Typography variant="h5" sx={{ fontWeight: "bold", color: primaryColor }}>
+        <Typography variant="h4" sx={{ fontWeight: "bold", color: primaryColor }}>
           Profile Settings
         </Typography>
         {editMode ? (
@@ -171,256 +201,255 @@ const ProfileSettings = () => {
         )}
       </Box>
 
-      {/* Profile Fields */}
       <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="First Name"
-            value={profile.first_name}
-            onChange={handleProfileChange("first_name")}
-            disabled={!editMode}
-            sx={{
-              '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: primaryColor
-              },
-              '& .MuiInputLabel-root.Mui-focused': {
-                color: primaryColor
-              }
-            }}
-          />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="Last Name"
-            value={profile.last_name}
-            onChange={handleProfileChange("last_name")}
-            disabled={!editMode}
-            sx={{
-              '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: primaryColor
-              },
-              '& .MuiInputLabel-root.Mui-focused': {
-                color: primaryColor
-              }
-            }}
-          />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <FormControl fullWidth disabled={!editMode}>
-            <InputLabel>Gender</InputLabel>
-            <Select
-              value={profile.gender}
-              label="Gender"
-              onChange={handleProfileChange("gender")}
-              sx={{
-                '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: primaryColor
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: primaryColor
-                }
-              }}
-            >
-              <MenuItem value="male">Male</MenuItem>
-              <MenuItem value="female">Female</MenuItem>
-              <MenuItem value="other">Other</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="Date of Birth"
-            type="date"
-            value={profile.birth_date}
-            onChange={handleProfileChange("birth_date")}
-            InputLabelProps={{ shrink: true }}
-            disabled={!editMode}
-            sx={{
-              '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: primaryColor
-              },
-              '& .MuiInputLabel-root.Mui-focused': {
-                color: primaryColor
-              }
-            }}
-          />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="Phone"
-            value={profile.phone}
-            onChange={handleProfileChange("phone")}
-            disabled={!editMode}
-            sx={{
-              '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: primaryColor
-              },
-              '& .MuiInputLabel-root.Mui-focused': {
-                color: primaryColor
-              }
-            }}
-          />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="Email"
-            value={profile.email}
-            disabled
-            sx={{
-              '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: primaryColor
-              },
-              '& .MuiInputLabel-root.Mui-focused': {
-                color: primaryColor
-              }
-            }}
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <Button
-            variant="outlined"
-            onClick={() => setPasswordDialog(true)}
-            disabled={!editMode}
-            startIcon={<Lock />}
-            sx={{
-              color: primaryColor,
-              borderColor: primaryColor,
-              '&:hover': {
-                borderColor: secondaryColor,
-                color: secondaryColor
-              }
-            }}
-          >
-            Change Password
-          </Button>
-        </Grid>
-      </Grid>
-
-      {/* Password Change Dialog */}
-      <Dialog open={passwordDialog} onClose={() => setPasswordDialog(false)}>
-        <DialogTitle sx={{ color: primaryColor }}>Change Password</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            margin="normal"
-            label="Current Password"
-            type="password"
-            value={passwordData.current_password}
-            onChange={handlePasswordChange("current_password")}
-            sx={{
-              '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: primaryColor
-              },
-              '& .MuiInputLabel-root.Mui-focused': {
-                color: primaryColor
-              }
-            }}
-          />
-          <TextField
-            fullWidth
-            margin="normal"
-            label="New Password"
-            type="password"
-            value={passwordData.new_password}
-            onChange={handlePasswordChange("new_password")}
-            sx={{
-              '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: primaryColor
-              },
-              '& .MuiInputLabel-root.Mui-focused': {
-                color: primaryColor
-              }
-            }}
-          />
-          <TextField
-            fullWidth
-            margin="normal"
-            label="Confirm Password"
-            type="password"
-            value={passwordData.confirm_password}
-            onChange={handlePasswordChange("confirm_password")}
-            sx={{
-              '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: primaryColor
-              },
-              '& .MuiInputLabel-root.Mui-focused': {
-                color: primaryColor
-              }
-            }}
-          />
-          {verificationSent && (
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Verification Code"
-              value={passwordData.verification_code}
-              onChange={handlePasswordChange("verification_code")}
-              sx={{
-                '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: primaryColor
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: primaryColor
-                }
-              }}
-            />
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={() => setPasswordDialog(false)}
-            sx={{ color: primaryColor }}
-          >
-            Cancel
-          </Button>
-          {!verificationSent ? (
-            <Button 
-              onClick={handleSendVerification}
-              sx={{ color: primaryColor }}
-            >
-              Send Verification Code
-            </Button>
-          ) : (
-            <Button 
-              onClick={changePassword} 
-              variant="contained"
-              sx={{
-                backgroundColor: primaryColor,
-                '&:hover': {
-                  backgroundColor: secondaryColor
-                }
-              }}
-            >
-              Confirm Change
-            </Button>
-          )}
-        </DialogActions>
-      </Dialog>
-
-      {/* Alert Snackbar */}
-      <Snackbar
-        open={alert.open}
-        autoHideDuration={6000}
-        onClose={() => setAlert({ ...alert, open: false })}
-      >
-        <Alert
-          severity={alert.severity}
-          onClose={() => setAlert({ ...alert, open: false })}
-          sx={{
-            '& .MuiAlert-icon': { color: primaryColor },
-            '& .MuiAlert-message': { color: primaryColor }
-          }}
-        >
-          {alert.message}
-        </Alert>
-      </Snackbar>
-    </Box>
-  );
-};
-
-export default ProfileSettings;
+             <Grid item xs={12} md={6}>
+               <TextField
+                 fullWidth
+                 label="First Name"
+                 value={profile.first_name}
+                 onChange={handleProfileChange("first_name")}
+                 disabled={!editMode}
+                 sx={{
+                   '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                     borderColor: primaryColor
+                   },
+                   '& .MuiInputLabel-root.Mui-focused': {
+                     color: primaryColor
+                   }
+                 }}
+               />
+             </Grid>
+             <Grid item xs={12} md={6}>
+               <TextField
+                 fullWidth
+                 label="Last Name"
+                 value={profile.last_name}
+                 onChange={handleProfileChange("last_name")}
+                 disabled={!editMode}
+                 sx={{
+                   '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                     borderColor: primaryColor
+                   },
+                   '& .MuiInputLabel-root.Mui-focused': {
+                     color: primaryColor
+                   }
+                 }}
+               />
+             </Grid>
+             <Grid item xs={12} md={6}>
+               <FormControl fullWidth disabled={!editMode}>
+                 <InputLabel>Gender</InputLabel>
+                 <Select
+                   value={profile.gender}
+                   label="Gender"
+                   onChange={handleProfileChange("gender")}
+                   sx={{
+                     '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                       borderColor: primaryColor
+                     },
+                     '& .MuiInputLabel-root.Mui-focused': {
+                       color: primaryColor
+                     }
+                   }}
+                 >
+                   <MenuItem value="male">Male</MenuItem>
+                   <MenuItem value="female">Female</MenuItem>
+                   <MenuItem value="other">Other</MenuItem>
+                 </Select>
+               </FormControl>
+             </Grid>
+             <Grid item xs={12} md={6}>
+               <TextField
+                 fullWidth
+                 label="Date of Birth"
+                 type="date"
+                 value={profile.birth_date}
+                 onChange={handleProfileChange("birth_date")}
+                 InputLabelProps={{ shrink: true }}
+                 disabled={!editMode}
+                 sx={{
+                   '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                     borderColor: primaryColor
+                   },
+                   '& .MuiInputLabel-root.Mui-focused': {
+                     color: primaryColor
+                   }
+                 }}
+               />
+             </Grid>
+             <Grid item xs={12} md={6}>
+               <TextField
+                 fullWidth
+                 label="Phone"
+                 value={profile.phone}
+                 onChange={handleProfileChange("phone")}
+                 disabled={!editMode}
+                 sx={{
+                   '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                     borderColor: primaryColor
+                   },
+                   '& .MuiInputLabel-root.Mui-focused': {
+                     color: primaryColor
+                   }
+                 }}
+               />
+             </Grid>
+             <Grid item xs={12} md={6}>
+               <TextField
+                 fullWidth
+                 label="Email"
+                 value={profile.email}
+                 disabled
+                 sx={{
+                   '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                     borderColor: primaryColor
+                   },
+                   '& .MuiInputLabel-root.Mui-focused': {
+                     color: primaryColor
+                   }
+                 }}
+               />
+             </Grid>
+             <Grid item xs={12}>
+               <Button
+                 variant="outlined"
+                 onClick={() => setPasswordDialog(true)}
+                 disabled={!editMode}
+                 startIcon={<Lock />}
+                 sx={{
+                   color: primaryColor,
+                   borderColor: primaryColor,
+                   '&:hover': {
+                     borderColor: secondaryColor,
+                     color: secondaryColor
+                   }
+                 }}
+               >
+                 Change Password
+               </Button>
+             </Grid>
+           </Grid>
+     
+         
+           <Dialog open={passwordDialog} onClose={() => setPasswordDialog(false)}>
+             <DialogTitle sx={{ color: primaryColor }}>Change Password</DialogTitle>
+             <DialogContent>
+               <TextField
+                 fullWidth
+                 margin="normal"
+                 label="Current Password"
+                 type="password"
+                 value={passwordData.current_password}
+                 onChange={handlePasswordChange("current_password")}
+                 sx={{
+                   '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                     borderColor: primaryColor
+                   },
+                   '& .MuiInputLabel-root.Mui-focused': {
+                     color: primaryColor
+                   }
+                 }}
+               />
+               <TextField
+                 fullWidth
+                 margin="normal"
+                 label="New Password"
+                 type="password"
+                 value={passwordData.new_password}
+                 onChange={handlePasswordChange("new_password")}
+                 sx={{
+                   '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                     borderColor: primaryColor
+                   },
+                   '& .MuiInputLabel-root.Mui-focused': {
+                     color: primaryColor
+                   }
+                 }}
+               />
+               <TextField
+                 fullWidth
+                 margin="normal"
+                 label="Confirm Password"
+                 type="password"
+                 value={passwordData.confirm_password}
+                 onChange={handlePasswordChange("confirm_password")}
+                 sx={{
+                   '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                     borderColor: primaryColor
+                   },
+                   '& .MuiInputLabel-root.Mui-focused': {
+                     color: primaryColor
+                   }
+                 }}
+               />
+               {verificationSent && (
+                 <TextField
+                   fullWidth
+                   margin="normal"
+                   label="Verification Code"
+                   value={passwordData.verification_code}
+                   onChange={handlePasswordChange("verification_code")}
+                   sx={{
+                     '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                       borderColor: primaryColor
+                     },
+                     '& .MuiInputLabel-root.Mui-focused': {
+                       color: primaryColor
+                     }
+                   }}
+                 />
+               )}
+             </DialogContent>
+             <DialogActions>
+               <Button 
+                 onClick={() => setPasswordDialog(false)}
+                 sx={{ color: primaryColor }}
+               >
+                 Cancel
+               </Button>
+               {!verificationSent ? (
+                 <Button 
+                   onClick={handleSendVerification}
+                   sx={{ color: primaryColor }}
+                 >
+                   Send Verification Code
+                 </Button>
+               ) : (
+                 <Button 
+                   onClick={changePassword} 
+                   variant="contained"
+                   sx={{
+                     backgroundColor: primaryColor,
+                     '&:hover': {
+                       backgroundColor: secondaryColor
+                     }
+                   }}
+                 >
+                   Confirm Change
+                 </Button>
+               )}
+             </DialogActions>
+           </Dialog>
+     
+        
+           <Snackbar
+             open={alert.open}
+             autoHideDuration={6000}
+             onClose={() => setAlert({ ...alert, open: false })}
+           >
+             <Alert
+               severity={alert.severity}
+               onClose={() => setAlert({ ...alert, open: false })}
+               sx={{
+                 '& .MuiAlert-icon': { color: primaryColor },
+                 '& .MuiAlert-message': { color: primaryColor }
+               }}
+             >
+               {alert.message}
+             </Alert>
+           </Snackbar>
+         </Box>
+       );
+     };
+     
+     export default ProfileSettings;

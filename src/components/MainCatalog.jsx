@@ -3,7 +3,7 @@ import { Box, Typography, Grid, Card, CardContent, Button, useTheme, alpha, Coll
 import { motion } from 'framer-motion';
 import { CheckCircleOutline, LocationOn, AccessTime, ExpandMore, Phone } from '@mui/icons-material';
 
-// Enhanced clinic card with real Almaty addresses and working hours
+
 const ClinicCard = ({ clinic }) => {
   const theme = useTheme();
   const [expanded, setExpanded] = useState(false);
@@ -69,7 +69,7 @@ const ClinicCard = ({ clinic }) => {
               </Typography>
             </Box>
 
-            {/* Location with real Almaty address */}
+           
             <Box sx={{ display: 'flex', mb: 1.5 }}>
               <LocationOn 
                 sx={{ 
@@ -91,7 +91,7 @@ const ClinicCard = ({ clinic }) => {
               </Typography>
             </Box>
             
-            {/* Working hours display */}
+           
             <Box sx={{ display: 'flex', mb: 1 }}>
               <AccessTime 
                 sx={{ 
@@ -111,8 +111,7 @@ const ClinicCard = ({ clinic }) => {
                 {clinic.hours}
               </Typography>
             </Box>
-            
-            {/* Expand button for more info */}
+          
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
               <Typography 
                 variant="caption" 
@@ -138,10 +137,10 @@ const ClinicCard = ({ clinic }) => {
               </IconButton>
             </Box>
             
-            {/* Collapsible content */}
+         
             <Collapse in={expanded} timeout="auto" unmountOnExit>
               <Box sx={{ mt: 1.5, pt: 1.5, borderTop: `1px solid ${alpha('#001A00', 0.1)}` }}>
-                {/* Phone number */}
+              
                 <Box sx={{ display: 'flex', mb: 1.5 }}>
                   <Phone 
                     sx={{ 
@@ -162,7 +161,7 @@ const ClinicCard = ({ clinic }) => {
                   </Typography>
                 </Box>
                 
-                {/* Additional services */}
+               
                 <Typography 
                   variant="body2" 
                   sx={{ 
@@ -195,7 +194,6 @@ const ClinicCard = ({ clinic }) => {
 const MainCatalog = () => {
   const theme = useTheme();
   
-  // Enhanced clinics data with real Almaty addresses and details
   const clinics = [
     { 
       id: 1, 
@@ -231,7 +229,6 @@ const MainCatalog = () => {
     },
   ];
 
-  // Card animation variants
   const cardVariants = {
     offscreen: {
       y: 40,
@@ -283,9 +280,9 @@ const MainCatalog = () => {
       }}
     >
       <Box sx={{ 
-        maxWidth: '90%', // Changed from fixed 1280px to percentage
+        maxWidth: '90%', 
         mx: 'auto', 
-        px: { xs: 3, sm: 4, md: 5 }, // Increased padding on all screen sizes
+        px: { xs: 3, sm: 4, md: 5 }, 
         position: 'relative'
       }}>
         <motion.div
@@ -344,7 +341,7 @@ const MainCatalog = () => {
 
         <Grid 
           container 
-          spacing={4} // Increased spacing between grid items
+          spacing={4} 
           justifyContent="center"
         >
           {clinics.map((clinic, index) => (

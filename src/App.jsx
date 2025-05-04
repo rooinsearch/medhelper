@@ -14,7 +14,6 @@ import ClinicTests from "./pages/ClinicsPage.jsx";
 import ClinicDetailPage from "./components/ClinicDetailPage.jsx";
 import "./App.css";
 
-// Создаем компонент-обертку для управления отображением футера
 const Layout = ({ children }) => {
   const location = useLocation();
   const showFooter = location.pathname !== "/checkai";

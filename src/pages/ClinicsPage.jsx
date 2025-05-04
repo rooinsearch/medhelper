@@ -105,7 +105,7 @@ const ClinicsPage = () => {
           api.get('/analysis/hospital-reviews/'),
         ]);
 
-        // ensure we're working with arrays in case of pagination wrappers
+
         const analyses = Array.isArray(analysisRes.data)
           ? analysisRes.data
           : analysisRes.data.results || [];

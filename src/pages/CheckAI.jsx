@@ -225,7 +225,7 @@ export default function EnhancedAIChat() {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Загрузка истории чатов при инициализации
+
   useEffect(() => {
     const savedChats = localStorage.getItem("aiChatHistory");
     if (savedChats) {
@@ -238,7 +238,6 @@ export default function EnhancedAIChat() {
     }
   }, []);
 
-  // Сохранение истории чатов при изменении сообщений
   useEffect(() => {
     if (messages.length > 0) {
       const existingChats = [...chatHistory];
@@ -264,17 +263,17 @@ export default function EnhancedAIChat() {
     }
   }, [messages]);
 
-  // Прокрутка к последнему сообщению
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Определение языка сообщения
+
   const detectLanguage = (text) => {
     return /[а-яА-ЯЁё]/.test(text) ? 'ru' : 'en';
   };
 
-  // Запрос к Gemini API с улучшенным промптом
+
   const fetchAIResponse = async (userMessage, attachedImage = null) => {
     if (apiLimit <= 0) {
       const isEnglish = detectLanguage(userMessage) === 'en';
@@ -348,7 +347,6 @@ export default function EnhancedAIChat() {
         language: userLanguage
       };
       
-      // Проверка на опасные симптомы
       const dangerKeywords = isEnglish 
         ? ['emergency', 'urgent', 'stroke', 'heart attack', '911'] 
         : ['срочно', 'немедленно', 'инсульт', 'инфаркт', 'скорую'];
@@ -379,7 +377,7 @@ export default function EnhancedAIChat() {
     }
   };
 
-  // Обработка отправки сообщения
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!input.trim() && !imagePreview) return;
@@ -399,7 +397,7 @@ export default function EnhancedAIChat() {
     fetchAIResponse(input, imagePreview);
   };
 
-  // Выбор и предпросмотр файла
+
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;

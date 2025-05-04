@@ -34,20 +34,19 @@ const MyRevProfile = () => {
     clinicName: ''
   });
 
-  // Проверка возможности редактирования (24 часа)
+
   const canEditReview = useCallback((reviewDate) => {
     const now = new Date();
     const reviewTime = new Date(reviewDate);
     return (now - reviewTime) < 24 * 60 * 60 * 1000;
   }, []);
 
-  // Универсальный показ уведомлений
+
   const showSnackbar = useCallback((message, severity = 'info') => {
     console.log(`[Snackbar] ${severity}: ${message}`);
     setSnackbar({ open: true, message, severity });
   }, []);
 
-  // Загрузка отзывов с обработкой ошибок
   useEffect(() => {
     const controller = new AbortController();
 
@@ -59,7 +58,6 @@ const MyRevProfile = () => {
           signal: controller.signal
         });
 
-        // Нормализация данных (для разных форматов ответа)
         const data = normalizeReviews(response.data);
         console.log(`[Fetch] Loaded ${data.length} reviews`, data);
         
@@ -76,16 +74,15 @@ const MyRevProfile = () => {
       }
     };
 
-    // Вспомогательная функция для нормализации данных
     const normalizeReviews = (apiData) => {
       if (!apiData) return [];
       
-      // Обработка разных форматов ответа API
+    
       const rawData = Array.isArray(apiData) ? apiData : apiData.results || [];
       
       return rawData.map(review => ({
         ...review,
-        id: review.id, // Сохраняем оригинальный формат ID
+        id: review.id, 
         created_at: review.created_at || review.date || new Date().toISOString()
       }));
     };
@@ -94,7 +91,6 @@ const MyRevProfile = () => {
     return () => controller.abort();
   }, [showSnackbar]);
 
-  // Удаление отзыва с подтверждением и обработкой ошибок
   const handleDeleteReview = async (id) => {
     if (!id) {
       console.error('[Delete] No ID provided');
@@ -103,29 +99,25 @@ const MyRevProfile = () => {
     }
 
     try {
-      // ID может быть строкой или числом - проверим оба варианта в логах
       console.log(`[Delete] Starting for ID: ${id} (${typeof id})`);
       
-      // Сначала запрос к API - только после успешного запроса обновим UI
       const response = await api.delete(`/analysis/myreviews/${id}/`);
       console.log('[Delete] Server response:', response);
 
-      // После успешного ответа от сервера обновляем UI
       setReviews(prev => {
         const updatedReviews = prev.filter(review => {
-          // Проверяем как строковое, так и числовое значение
+         
           return String(review.id) !== String(id);
         });
         console.log('[Delete] UI update after successful API call:', updatedReviews);
         return updatedReviews;
       });
 
-      // Подтверждающее уведомление
       showSnackbar('Review deleted successfully', 'success');
     } catch (err) {
       console.error('[Delete] Error:', err);
       
-      // Получаем более детальную информацию об ошибке
+     
       console.log('[Delete] Error response:', err.response);
       const errorMessage = err.response?.data?.message || err.response?.data?.detail || 'Failed to delete review';
       showSnackbar(errorMessage, 'error');
@@ -134,7 +126,7 @@ const MyRevProfile = () => {
     }
   };
 
-  // Редактирование отзыва
+  
   const handleEditSubmit = async () => {
     if (!editingReview) {
       console.warn('[Edit] No review selected');
@@ -161,7 +153,7 @@ const MyRevProfile = () => {
         updatedReview
       );
       
-      // Обновляем конкретный отзыв в состоянии
+      
       setReviews(prev => prev.map(review => 
         String(review.id) === String(editingReview.id) ? { ...data, id: data.id } : review
       ));
@@ -175,7 +167,6 @@ const MyRevProfile = () => {
     }
   };
 
-  // Форматирование даты с обработкой ошибок
   const formatDate = useCallback((dateString) => {
     try {
       return new Date(dateString).toLocaleString('en-US', {
@@ -191,7 +182,6 @@ const MyRevProfile = () => {
     }
   }, []);
 
-  // Состояние загрузки
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -200,7 +190,6 @@ const MyRevProfile = () => {
     );
   }
 
-  // Состояние ошибки
   if (error) {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -216,7 +205,6 @@ const MyRevProfile = () => {
     );
   }
 
-  // Основной интерфейс
   return (
     <Box sx={{ 
       p: 2,
@@ -273,7 +261,7 @@ const MyRevProfile = () => {
         </Box>
       )}
 
-      {/* Диалоговые окна */}
+ 
       <EditDialog
         open={Boolean(editingReview)}
         onClose={() => setEditingReview(null)}
@@ -291,7 +279,7 @@ const MyRevProfile = () => {
         onConfirm={() => handleDeleteReview(deleteConfirm.reviewId)}
       />
 
-      {/* Уведомления */}
+ 
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
@@ -310,7 +298,7 @@ const MyRevProfile = () => {
   );
 };
 
-// Оптимизированный компонент карточки отзыва
+
 const ReviewCard = React.memo(({ review, formatDate, canEdit, onEditClick, onDeleteClick }) => {
   console.log(`[Render] ReviewCard ${review.id}`);
   
@@ -375,7 +363,7 @@ const ReviewCard = React.memo(({ review, formatDate, canEdit, onEditClick, onDel
   );
 });
 
-// Компонент редактирования
+
 const EditDialog = React.memo(({ open, onClose, editComment, editRating, onCommentChange, onRatingChange, onSubmit }) => {
   console.log('[Render] EditDialog');
   
@@ -408,7 +396,6 @@ const EditDialog = React.memo(({ open, onClose, editComment, editRating, onComme
   );
 });
 
-// Компонент подтверждения удаления
 const ConfirmDeleteDialog = React.memo(({ open, clinicName, onClose, onConfirm }) => {
   console.log('[Render] ConfirmDeleteDialog');
   

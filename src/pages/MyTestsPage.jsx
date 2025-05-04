@@ -26,7 +26,7 @@ import { ShoppingBag, ArrowBack } from "@mui/icons-material";
 
 const BG = { background: "#f0f2f5" };
 const statusColor = {
-  pending: "default",
+  pending: "warning",
   processing: "warning",
   completed: "success",
   rejected: "error"
@@ -37,7 +37,6 @@ const currency = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 0
 });
 
-// Шапка таблицы теперь зелёная (success.main)
 const HeadCell = styled(TableCell)(({ theme }) => ({
   fontWeight: 700,
   background: theme.palette.success.main,
@@ -126,7 +125,7 @@ export default function MyTestsPage() {
           </Typography>
         </Box>
 
-        {/* Recent Tests */}
+
         {fresh.length > 0 && (
           <Paper elevation={3} sx={{ mb: 4, borderRadius: 2 }}>
             <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
@@ -176,7 +175,6 @@ export default function MyTestsPage() {
           </Paper>
         )}
 
-        {/* All Tests Table */}
         <Paper elevation={3} sx={{ borderRadius: 2 }}>
           <TableContainer>
             <Table>

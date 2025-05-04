@@ -60,7 +60,7 @@ const CartPage = () => {
   const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width:600px)");
 
-  /* ---------- API ---------- */
+
   const fetchCart = async () => {
     setLoading(true);
     try {
@@ -78,8 +78,8 @@ const CartPage = () => {
   useEffect(() => {
     fetchCart();
     
-    // Добавляем интервал для периодического обновления корзины
-    const interval = setInterval(fetchCart, 30000); // Обновляем каждые 30 секунд
+   
+    const interval = setInterval(fetchCart, 30000); 
     
     return () => clearInterval(interval);
   }, []);
@@ -94,7 +94,7 @@ const CartPage = () => {
       await api.patch(`/cart/item/${id}/`, { quantity: qty });
       setSnackbar({ open: true, message: "Quantity updated", severity: "success" });
       setEditingItemId(null);
-      await fetchCart(); // Ждем обновления корзины
+      await fetchCart(); 
     } catch (err) {
       console.error("Update quantity error:", err);
       setSnackbar({ open: true, message: "Update failed", severity: "error" });
@@ -110,14 +110,14 @@ const CartPage = () => {
         severity: "success",
         icon: <CheckCircleIcon fontSize="inherit" />
       });
-      await fetchCart(); // Ждем обновления корзины
+      await fetchCart(); 
     } catch (err) {
       console.error("Remove item error:", err);
       setSnackbar({ open: true, message: "Remove failed", severity: "error" });
     }
   };
 
-  /* ---------- checkout callbacks for PaymentModal ---------- */
+ 
   const handleCheckoutSuccess = (data) => {
     setCart({ ...cart, items: [], total_price: 0, final_price: data.final_price || 0 });
     setSnackbar({
@@ -144,10 +144,9 @@ const CartPage = () => {
 
   const closeSnack = () => setSnackbar((s) => ({ ...s, open: false }));
 
-  /* ---------- Global background ---------- */
   const globalBg = <GlobalStyles styles={{ body: { backgroundColor: colors.background } }} />;
 
-  /* ---------- UI ---------- */
+ 
   if (loading) {
     return (
       <>
@@ -186,7 +185,7 @@ const CartPage = () => {
         component="main"
         sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: 1400, mx: "auto", minHeight: "100vh" }}
       >
-        {/* Header */}
+     
         <Stack direction="row" alignItems="center" spacing={1} mb={3}>
           <IconButton onClick={() => navigate(-1)} sx={{ color: colors.primary }}>
             <ArrowBackIcon />
@@ -234,9 +233,7 @@ const CartPage = () => {
             </Button>
           </Box>
         ) : (
-          /* Table + summary */
           <Grid container spacing={3}>
-            {/* Items table */}
             <Grid item xs={12} md={8}>
               <Paper elevation={2} sx={{ borderRadius: 2 }}>
                 <TableContainer>
@@ -356,7 +353,6 @@ const CartPage = () => {
               </Paper>
             </Grid>
 
-            {/* Order summary */}
             <Grid item xs={12} md={4}>
               <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
                 <Typography variant="h6" mb={2} fontWeight={700} sx={{ color: colors.primaryDark }}>
@@ -413,7 +409,6 @@ const CartPage = () => {
           </Grid>
         )}
 
-        {/* Notifications */}
         <Snackbar
           open={snackbar.open}
           autoHideDuration={3000}
@@ -425,7 +420,7 @@ const CartPage = () => {
           </Alert>
         </Snackbar>
 
-        {/* Payment modal */}
+
         {cart && (
           <PaymentModal
             open={payOpen}

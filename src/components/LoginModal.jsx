@@ -5,15 +5,11 @@ import {
   Typography,
   TextField,
   Button,
-  Checkbox,
-  FormControlLabel,
   Divider,
   CircularProgress,
   Alert,
   Paper,
 } from "@mui/material";
-import { GoogleLogin } from "@react-oauth/google";
-import { jwtDecode } from "jwt-decode";
 import { useSearchParams } from "react-router-dom";
 
 const VerificationCodeComponent = ({ 
@@ -158,7 +154,6 @@ const AuthModal = ({ open, onClose, onLogin, initialResetToken = null }) => {
   const newPasswordInputRef = useRef(null);
 
   const [isRegistering, setIsRegistering] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -187,12 +182,6 @@ const AuthModal = ({ open, onClose, onLogin, initialResetToken = null }) => {
   const API_BASE_URL = "http://localhost:8000";
 
   useEffect(() => {
-    const savedEmail = localStorage.getItem("userEmail");
-    if (savedEmail) {
-      setFormData(prev => ({ ...prev, email: savedEmail }));
-      setRememberMe(true);
-    }
-
     // Check URL for reset token
     const token = searchParams.get('token');
     if (token) {
@@ -295,8 +284,6 @@ const AuthModal = ({ open, onClose, onLogin, initialResetToken = null }) => {
       if (isRegister) {
         setShowVerification(true);
       } else {
-        if (rememberMe) localStorage.setItem("userEmail", formData.email);
-        else localStorage.removeItem("userEmail");
         localStorage.setItem("isAuthenticated", "true");
         localStorage.setItem("accessToken", data.access_token);
         onLogin(data.access_token);
@@ -426,31 +413,6 @@ const AuthModal = ({ open, onClose, onLogin, initialResetToken = null }) => {
       setResetFormMessage(error.message || "Failed to reset password. The link may be expired.");
       setResetFormMessageType("error");
     }
-  };
-
-  const handleGoogleSuccess = async (response) => {
-    try {
-      const token = response.credential;
-      const decoded = jwtDecode(token);
-      
-      const data = await makeApiCall(
-        "/api/auth/google/",
-        "POST",
-        { token },
-        "Google authentication failed"
-      );
-      
-      localStorage.setItem("isAuthenticated", "true");
-      localStorage.setItem("accessToken", data.access_token);
-      onLogin(data.access_token);
-      onClose();
-    } catch (error) {
-      setError(error.message || "Google authentication failed. Please try again.");
-    }
-  };
-
-  const handleGoogleFailure = () => {
-    setError("Google sign-in failed. Please try another method.");
   };
 
   const renderResetPasswordForm = () => (
@@ -664,46 +626,23 @@ const AuthModal = ({ open, onClose, onLogin, initialResetToken = null }) => {
             OR
           </Typography>
         </Box>
-        <Box sx={{ width: "100%", display: "flex", justifyContent: "center" }}>
-          <GoogleLogin onSuccess={handleGoogleSuccess} onError={handleGoogleFailure} />
-        </Box>
         {!isRegistering && (
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={rememberMe}
-                  onChange={() => setRememberMe(!rememberMe)}
-                  sx={{ 
-                    color: "#001A00", 
-                    "&.Mui-checked": { color: "#001A00" } 
-                  }}
-                  disabled={isLoading}
-                />
-              }
-              label={
-                <Typography sx={{ color: "#001A00", fontSize: "0.85rem" }}>
-                  Remember me
-                </Typography>
-              }
-            />
-            <Button
-              variant="text"
-              sx={{
-                color: "#001A00",
-                fontSize: "0.85rem",
-                textTransform: "none",
-                "&:hover": { 
-                  bgcolor: "rgba(0, 26, 0, 0.08)", 
-                  textDecoration: "underline" 
-                },
-              }}
-              onClick={() => setShowResetPassword(true)}
-              disabled={isLoading}
-            >
-              Forgot Password?
-            </Button>
-          </Box>
+          <Button
+            variant="text"
+            sx={{
+              color: "#001A00",
+              fontSize: "0.85rem",
+              textTransform: "none",
+              "&:hover": { 
+                bgcolor: "rgba(0, 26, 0, 0.08)", 
+                textDecoration: "underline" 
+              },
+            }}
+            onClick={() => setShowResetPassword(true)}
+            disabled={isLoading}
+          >
+            Forgot Password?
+          </Button>
         )}
         <Button
           variant="text"

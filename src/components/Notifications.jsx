@@ -11,7 +11,7 @@ import {
   IconButton,
   Paper,
   CircularProgress,
-  Snackbar,
+  Snackbar, 
   Alert,
   Button,
   styled
@@ -24,7 +24,7 @@ import {
 } from "@mui/icons-material";
 import api from "../api/axios";
 
-// Стилизованный контейнер для скролла
+
 const ScrollContainer = styled(Box)(({ theme }) => ({
   height: '100%',
   overflow: 'hidden',
@@ -52,8 +52,8 @@ const SYNC_INTERVAL = 60000;
 
 const Notifications = ({ updateUnreadCount }) => {
   const [settings, setSettings] = useState({
-    testReminders: true,
-    resultAlerts: true
+    testReminders: null,
+    resultAlerts: null
   });
 
   const [notifications, setNotifications] = useState([]);
@@ -65,7 +65,7 @@ const Notifications = ({ updateUnreadCount }) => {
   const [hasMore, setHasMore] = useState(true);
   const [syncingData, setSyncingData] = useState(false);
 
-  // Загрузка настроек уведомлений
+ 
   useEffect(() => {
     const fetchSettings = async () => {
       try {
@@ -84,7 +84,7 @@ const Notifications = ({ updateUnreadCount }) => {
     fetchSettings();
   }, []);
 
-  // Загрузка уведомлений
+  
   const fetchNotifications = useCallback(async (pageNum = 1, refresh = false) => {
     try {
       if (pageNum === 1 || refresh) {
@@ -121,7 +121,7 @@ const Notifications = ({ updateUnreadCount }) => {
     fetchNotifications(page);
   }, [page, fetchNotifications]);
 
-  // Автообновление уведомлений
+ 
   useEffect(() => {
     const syncInterval = setInterval(() => {
       fetchNotifications(1, true);
@@ -130,13 +130,40 @@ const Notifications = ({ updateUnreadCount }) => {
     return () => clearInterval(syncInterval);
   }, [fetchNotifications]);
 
-  // Обновление счетчика непрочитанных
+
+  useEffect(() => {
+    const markAllAsRead = async () => {
+      try {
+        const unreadNotifications = notifications.filter(n => !n.read);
+        if (unreadNotifications.length > 0) {
+          await api.post("/notifications/mark-all-read/");
+          
+          
+          setNotifications(prev => 
+            prev.map(n => ({ ...n, read: true }))
+          );
+          
+          
+          updateUnreadCount(0);
+        }
+      } catch (error) {
+        console.error("Error marking all notifications as read:", error);
+      }
+    };
+    
+  
+    if (!loading && notifications.length > 0) {
+      markAllAsRead();
+    }
+  }, [loading, notifications.length, updateUnreadCount]);
+
+ 
   useEffect(() => {
     const unreadCount = notifications.filter(n => !n.read).length;
     updateUnreadCount(unreadCount);
   }, [notifications, updateUnreadCount]);
 
-  // Сохранение настроек
+
   const saveSettings = async (newSettings) => {
     setSavingSettings(true);
     try {
@@ -172,7 +199,7 @@ const Notifications = ({ updateUnreadCount }) => {
     saveSettings(newSettings);
   };
 
-  // Пометить как прочитанное
+
   const markAsRead = async (id) => {
     try {
       await api.patch(`/notifications/${id}/mark-read/`);
@@ -185,7 +212,7 @@ const Notifications = ({ updateUnreadCount }) => {
     }
   };
 
-  // Удаление уведомления
+ 
   const deleteNotification = async (id) => {
     try {
       await api.delete(`/notifications/${id}/`);
@@ -214,7 +241,6 @@ const Notifications = ({ updateUnreadCount }) => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  // Группировка уведомлений по дате
   const groupByDate = (notifications) => {
     const groups = {};
     
@@ -289,7 +315,6 @@ const Notifications = ({ updateUnreadCount }) => {
           </IconButton>
         </Box>
 
-        {/* Настройки уведомлений */}
         <Paper elevation={0} sx={{ 
           p: 2, 
           mb: 2, 
@@ -335,11 +360,11 @@ const Notifications = ({ updateUnreadCount }) => {
               </Typography>
             </Box>
             <Switch
-              checked={settings.testReminders}
+              checked={settings.testReminders === null ? true : settings.testReminders}
               onChange={() => handleSettingChange('testReminders')}
               color="primary"
               size="small"
-              disabled={savingSettings}
+              disabled={savingSettings || settings.testReminders === null}
             />
           </Box>
           
@@ -358,17 +383,17 @@ const Notifications = ({ updateUnreadCount }) => {
               </Typography>
             </Box>
             <Switch
-              checked={settings.resultAlerts}
+              checked={settings.resultAlerts === null ? true : settings.resultAlerts}
               onChange={() => handleSettingChange('resultAlerts')}
               color="primary"
               size="small"
-              disabled={savingSettings}
+              disabled={savingSettings || settings.resultAlerts === null}
             />
           </Box>
         </Paper>
       </Box>
 
-      {/* Список уведомлений */}
+   
       <Box className="scroll-content">
         <Box sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ 
@@ -487,8 +512,7 @@ const Notifications = ({ updateUnreadCount }) => {
           )}
         </Box>
       </Box>
-      
-      {/* Уведомления об операциях */}
+  
       <Snackbar 
         open={snackbar.open} 
         autoHideDuration={4000}

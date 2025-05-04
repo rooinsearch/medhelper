@@ -1,6 +1,6 @@
 import { Box, Container, Typography, Stack, Link, IconButton } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { FaInstagram, FaTelegram, FaWhatsapp } from "react-icons/fa"; // Используем react-icons
+import { FaInstagram, FaTelegram, FaWhatsapp } from "react-icons/fa"; 
 
 const Footer = () => {
   const navigate = useNavigate();

@@ -86,7 +86,6 @@ export default function HomepageHealthTips() {
 
   return (
     <Box sx={getWidgetStyles()}>
-      {/* Header */}
       <Box sx={{
         p: 2,
         display: "flex",
@@ -109,12 +108,12 @@ export default function HomepageHealthTips() {
         )}
       </Box>
 
-      {/* Scrollable Content */}
+   
       <Box sx={{
         flex: 1,
         overflowY: "auto",
         p: 2,
-        minHeight: 0, // Важно для правильной работы скролла
+        minHeight: 0, 
         '&::-webkit-scrollbar': {
           width: '6px',
         },
@@ -167,7 +166,7 @@ export default function HomepageHealthTips() {
 
                   <Collapse in={expandedTip === tip.id}>
                     <Box sx={{ 
-                      maxHeight: "200px", // Ограничиваем высоту раскрытого контента
+                      maxHeight: "200px", 
                       overflowY: "auto",
                       mt: 1,
                       pr: 1,
@@ -220,7 +219,7 @@ export default function HomepageHealthTips() {
         </Box>
       </Box>
 
-      {/* Footer */}
+     
       <Box sx={{ 
         p: 2, 
         borderTop: "1px solid rgba(255,255,255,0.1)",

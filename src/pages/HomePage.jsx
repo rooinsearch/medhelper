@@ -1,7 +1,7 @@
 import React from "react"; 
-import BackgroundImages from "../components/BackgroundImages"; // Фоновые изображения
-import Tips from "../components/Tips"; // Новый компонент
-import AiMain from "../components/AiMain" ;// Убедись, что путь правильный
+import BackgroundImages from "../components/BackgroundImages"; 
+import Tips from "../components/Tips";
+import AiMain from "../components/AiMain" ;
 import TextMain from "../components/TextMain" ;
 import Reviews from "../components/Reviews" ;
 import LoginModal from "../components/LoginModal" ;
@@ -15,7 +15,7 @@ const HomePage = () => {
 
       <BackgroundImages /> 
       <AiMain/>
-      <Tips/> {/* Добавляем HealthTips */}
+      <Tips/> 
       <TextMain/> 
       <Reviews/> 
    

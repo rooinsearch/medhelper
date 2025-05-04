@@ -6,7 +6,7 @@ const AiMain = () => {
   const navigate = useNavigate();
 
   const handleStartNow = () => {
-    navigate('/checkai'); // Убедись, что маршрут "/checkai" определён в `App.js`
+    navigate('/checkai'); 
   };
 
   return (

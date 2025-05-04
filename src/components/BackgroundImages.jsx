@@ -1,13 +1,12 @@
 import React from "react";
 import { Box, useMediaQuery } from "@mui/material";
-import MainCatalog from "./MainCatalog"; // Импортируем ваш компонент каталога
+import MainCatalog from "./MainCatalog"; 
 
 const BackgroundImages = () => {
   const isMobile = useMediaQuery("(max-width:768px)");
 
   return (
     <Box sx={{ width: "100%", overflowX: "hidden" }}>
-      {/* Первый фон */}
       <Box
         sx={{
           width: "100%",
@@ -31,7 +30,7 @@ const BackgroundImages = () => {
         }}
       />
 
-      {/* MainCatalog на месте второго фона */}
+    
       <MainCatalog />
 
     

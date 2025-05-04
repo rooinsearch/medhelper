@@ -227,7 +227,6 @@ const HealthTips = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 3, px: { xs: 2, sm: 3 } }}>
-      {/* Header */}
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Box>
           <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
@@ -290,7 +289,6 @@ const HealthTips = () => {
         </Menu>
       </Box>
 
-      {/* Selected Categories */}
       {selectedCategories.length > 0 && (
         <Box sx={{ mb: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           {selectedCategories.map(slug => {
@@ -307,7 +305,7 @@ const HealthTips = () => {
         </Box>
       )}
 
-      {/* Articles Grid */}
+
       <Grid container spacing={3}>
         {loading ? (
           Array.from({ length: ARTICLES_PER_PAGE }).map((_, index) => (
@@ -337,7 +335,6 @@ const HealthTips = () => {
         )}
       </Grid>
 
-      {/* Pagination */}
       {totalPages > 1 && !loading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <Pagination 
@@ -350,7 +347,7 @@ const HealthTips = () => {
         </Box>
       )}
 
-      {/* Article Dialog */}
+
       <Dialog
         open={openArticle !== null}
         onClose={handleArticleClose}
@@ -467,7 +464,7 @@ const HealthTips = () => {
         )}
       </Dialog>
 
-      {/* Notifications */}
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}

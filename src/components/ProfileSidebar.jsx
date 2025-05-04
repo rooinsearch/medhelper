@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Drawer,
   List,
@@ -25,13 +25,34 @@ import ProfileSettings from "./ProfileSettings";
 import TestHistory from "./TestHistory";
 import Notifications from "./Notifications";
 import MyRevProfile from "./MyRevProfile";
+import api from "../api/axios";
 
 const drawerWidth = 280;
 
 const ProfileSidebar = ({ updateUnreadCount }) => {
   const [open, setOpen] = useState(true);
   const [activeSection, setActiveSection] = useState("profile");
-  const [unreadNotifications, setUnreadNotifications] = useState(3);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+ 
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await api.get("/notifications/unread-count/");
+        setUnreadNotifications(response.data.count);
+        if (updateUnreadCount) {
+          updateUnreadCount(response.data.count);
+        }
+      } catch (error) {
+        console.error("Error fetching unread notifications count:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUnreadCount();
+  }, [updateUnreadCount]);
 
   const handleUpdateUnreadCount = (count) => {
     setUnreadNotifications(count);
@@ -51,7 +72,7 @@ const ProfileSidebar = ({ updateUnreadCount }) => {
     window.location.reload();
   };
 
-  // Удален пункт "Favourites" из меню
+  
   const menuItems = [
     { id: "profile", text: "Profile & Settings", icon: <SettingsIcon /> },
     { id: "test-history", text: "Test Information", icon: <ResultsIcon /> },
@@ -66,7 +87,6 @@ const ProfileSidebar = ({ updateUnreadCount }) => {
 
   return (
     <Box sx={{ display: "flex", height: "100vh", bgcolor: "#f1f1f1" }}>
-      {/* Кнопка меню для мобильных */}
       <IconButton
         onClick={toggleDrawer}
         sx={{
@@ -83,7 +103,6 @@ const ProfileSidebar = ({ updateUnreadCount }) => {
         <MenuIcon />
       </IconButton>
 
-      {/* Боковое меню */}
       <Drawer
         variant={open ? "permanent" : "temporary"}
         open={open}
@@ -145,7 +164,7 @@ const ProfileSidebar = ({ updateUnreadCount }) => {
 
         <Divider sx={{ my: 1 }} />
 
-        {/* Кнопка выхода */}
+     
         <ListItem
           button
           onClick={handleLogout}
@@ -167,7 +186,7 @@ const ProfileSidebar = ({ updateUnreadCount }) => {
         </ListItem>
       </Drawer>
 
-      {/* Основной контент */}
+   
       <Box
         component="main"
         sx={{
