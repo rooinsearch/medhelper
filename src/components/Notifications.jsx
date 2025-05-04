@@ -24,6 +24,7 @@ import {
 } from "@mui/icons-material";
 import api from "../api/axios";
 
+// Стилизованный контейнер для скролла
 const ScrollContainer = styled(Box)(({ theme }) => ({
   height: '100%',
   overflow: 'hidden',
@@ -100,13 +101,9 @@ const Notifications = ({ updateUnreadCount }) => {
       });
       
       if (refresh) {
-        setNotifications(response.data.results || []);
+        setNotifications(response.data.results);
       } else {
-        setNotifications(prev => 
-          pageNum === 1 
-            ? response.data.results || [] 
-            : [...prev, ...(response.data.results || [])]
-        );
+        setNotifications(prev => pageNum === 1 ? response.data.results : [...prev, ...response.data.results]);
       }
       
       setHasMore(response.data.next !== null);
@@ -218,16 +215,10 @@ const Notifications = ({ updateUnreadCount }) => {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   // Группировка уведомлений по дате
-  const groupByDate = (notifs) => {
-    if (!notifs || !Array.isArray(notifs)) {
-      return {};
-    }
-    
+  const groupByDate = (notifications) => {
     const groups = {};
     
-    notifs.forEach(notification => {
-      if (!notification?.created_at) return;
-      
+    notifications.forEach(notification => {
       const date = new Date(notification.created_at);
       const today = new Date();
       const yesterday = new Date(today);
@@ -395,11 +386,7 @@ const Notifications = ({ updateUnreadCount }) => {
             )}
           </Typography>
           
-          {loading && notifications.length === 0 ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-              <CircularProgress size={24} color="inherit" />
-            </Box>
-          ) : error && notifications.length === 0 ? (
+          {error && notifications.length === 0 ? (
             <Box sx={{ textAlign: 'center', p: 3, color: '#FF3B30' }}>
               <Typography variant="body2">{error}</Typography>
               <Button 
@@ -411,7 +398,7 @@ const Notifications = ({ updateUnreadCount }) => {
                 Try Again
               </Button>
             </Box>
-          ) : notifications.length === 0 ? (
+          ) : notifications.length === 0 && !loading ? (
             <Typography variant="body2" sx={{ textAlign: 'center', p: 3, color: '#004d00' }}>
               No notifications available
             </Typography>
@@ -445,20 +432,25 @@ const Notifications = ({ updateUnreadCount }) => {
                           onClick={() => !notification.read && markAsRead(notification.id)}
                         >
                           <ListItemText
-                            primary={notification.message}
-                            secondary={new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            sx={{
-                              '& .MuiListItemText-primary': {
-                                fontWeight: notification.read ? 'normal' : '600',
-                                color: '#001A00',
-                                fontSize: '0.875rem'
-                              },
-                              '& .MuiListItemText-secondary': {
-                                color: '#004d00',
-                                fontSize: '0.75rem'
+                              primary={notification.subject}
+                              secondary={
+                                <>
+                                  <Typography variant="body2" sx={{ color: '#004d00', fontSize: '0.75rem' }}>
+                                    {notification.body}
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ color: '#007700' }}>
+                                    {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </Typography>
+                                </>
                               }
-                            }}
-                          />
+                              sx={{
+                                '& .MuiListItemText-primary': {
+                                  fontWeight: notification.read ? 'normal' : '600',
+                                  color: '#001A00',
+                                  fontSize: '0.875rem'
+                                }
+                              }}
+                            />
                           <IconButton
                             edge="end"
                             onClick={(e) => {
@@ -516,4 +508,4 @@ const Notifications = ({ updateUnreadCount }) => {
   );
 };
 
-export default Notifications;
+export default Notifications; 
