@@ -82,6 +82,7 @@ const getAvailableDates = () => {
 };
 
 const TestDetailsModal = ({ open, handleClose, test = {}, onCartUpdate }) => {
+  if (!test) return null;
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -529,4 +530,4 @@ const TestDetailsModal = ({ open, handleClose, test = {}, onCartUpdate }) => {
   );
 };
 
-export default TestDetailsModal;
+export default TestDetailsModal; 
