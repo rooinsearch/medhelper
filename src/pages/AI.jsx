@@ -625,4 +625,4 @@ export default function EnhancedAIChat() {
       </Box>
     </ThemeProvider>
   );
-}
+} 

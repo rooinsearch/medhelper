@@ -70,7 +70,7 @@ const defaultTest = {
   preparation: []
 };
 
-const availableTimes = ['08:00', '08:15', '8:30', '8:45', '9:00', '9:15', '9:30', '9:45', '10:00', '10:15', '10:30', '10:45', '11:00', '11:15', '11:30', '11:45', '12:00', '12:15', '12:30', '12:45', '13:00'];
+const availableTimes = ['08:00', '08:30', '9:00', '9:30', '10:00', '10:30', '11:00', '11:30'];
 
 const getAvailableDates = () => {
   const today = new Date();
@@ -486,7 +486,7 @@ const TestDetailsModal = ({ open, handleClose, test = {}, onCartUpdate }) => {
                   '&:hover': { backgroundColor: primaryDark }
                 }}
               >
-                Take Now
+                Book Now
               </Button>
             </Box>
           </Box>
@@ -529,4 +529,4 @@ const TestDetailsModal = ({ open, handleClose, test = {}, onCartUpdate }) => {
   );
 };
 
-export default TestDetailsModal;
+export default TestDetailsModal; 

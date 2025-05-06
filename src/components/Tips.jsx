@@ -202,7 +202,7 @@ export default function HomepageHealthTips() {
                       sx={{
                         textTransform: "none",
                         fontWeight: "bold",
-                        color: "primary.main"
+                        color: "#4a8c4a"
                       }}
                     >
                       {expandedTip === tip.id ? "Show Less" : "Read More"}

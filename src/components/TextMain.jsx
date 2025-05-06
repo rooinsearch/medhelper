@@ -6,7 +6,7 @@ const TextMain = () => {
       sx={{
         position: "absolute",
         top: "100px",
-        left: "70%",
+        left: "65%",
         transform: "translate(-50%, -50%)",
         width: "90%",
         maxWidth: 800,
@@ -17,15 +17,14 @@ const TextMain = () => {
       }}
     >
       
-      <Typography variant="h5" fontWeight="bold" sx={{ mt: 2 }}>
-        <span style={{ color: "orange" }}>70%</span>of users return for a follow-up appointment
+      <Typography variant="h5" fontWeight="bold" sx={{ mt: 1 }}>
+        <span style={{ color: "orange" }}>95%</span> of patients choose us again
       </Typography>
-      <Typography variant="h5" fontWeight="bold" sx={{ mt: 2 }}>
-        Over <span style={{ color: "orange" }}>10,000</span> doctors with a{" "}
-        <span style={{ color: "orange" }}>4.5+</span> star rating
+      <Typography variant="h5" fontWeight="bold" sx={{ mt: 1 }}>
+       Take, pay, and track your tests <span style={{ color: "orange" }}>all in one place</span>
       </Typography>
-      <Typography variant="h5" fontWeight="bold" sx={{ mt: 2}}>
-        AI analyzes <span style={{ color: "orange" }}>10,000+</span> medical reports daily
+      <Typography variant="h5" fontWeight="bold" sx={{ mt: 1}}>
+      <span style={{ color: "orange" }}>CheckAI</span> powered analysis for every medical report
       </Typography>
     </Box>
   );

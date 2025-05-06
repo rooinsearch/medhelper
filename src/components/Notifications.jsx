@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -24,7 +24,19 @@ import {
 } from "@mui/icons-material";
 import api from "../api/axios";
 
+// Константы для стилизации
+const COLORS = {
+  primary: '#004d00',
+  darkPrimary: '#001A00',
+  lightPrimary: '#e6f0e6',
+  hoverLight: '#f5f5f5',
+  hoverDark: '#d9e6d9',
+};
 
+const ITEMS_PER_PAGE = 10;
+const SYNC_INTERVAL = 60000; // 1 минута
+
+// Стилизованные компоненты
 const ScrollContainer = styled(Box)(({ theme }) => ({
   height: '100%',
   overflow: 'hidden',
@@ -47,50 +59,59 @@ const ScrollContainer = styled(Box)(({ theme }) => ({
   }
 }));
 
-const ITEMS_PER_PAGE = 10;
-const SYNC_INTERVAL = 60000;
+const NotificationItem = styled(ListItem)(({ isRead }) => ({
+  borderRadius: 8,
+  marginBottom: 8,
+  backgroundColor: isRead ? 'inherit' : COLORS.lightPrimary,
+  '&:hover': { 
+    backgroundColor: isRead ? COLORS.hoverLight : COLORS.hoverDark 
+  },
+  position: 'relative',
+}));
 
 const Notifications = ({ updateUnreadCount }) => {
+  // Состояния
   const [settings, setSettings] = useState({
-    testReminders: null,
-    resultAlerts: null
+    testReminders: true,
+    resultAlerts: true
   });
-
   const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [syncingData, setSyncingData] = useState(false);
+  const [hasMarkedAllRead, setHasMarkedAllRead] = useState(false); // Для предотвращения повторного сброса
 
- 
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get("/notifications/settings/");
-        setSettings(response.data);
-      } catch (error) {
-        console.error("Error fetching notification settings:", error);
-        setError("Failed to load notification settings");
-        showError("Failed to load settings");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSettings();
+  // Получение настроек уведомлений
+  const fetchSettings = useCallback(async () => {
+    try {
+      const response = await api.get("/notifications/settings/");
+      setSettings({
+        testReminders: response.data.testReminders ?? true,
+        resultAlerts: response.data.resultAlerts ?? true
+      });
+      return true;
+    } catch (err) {
+      console.error("Error fetching notification settings:", err);
+      setError("Failed to load notification settings");
+      showSnackbar("Failed to load settings", "error");
+      return false;
+    }
   }, []);
 
-  
+  // Получение уведомлений с пагинацией
   const fetchNotifications = useCallback(async (pageNum = 1, refresh = false) => {
     try {
-      if (pageNum === 1 || refresh) {
-        setLoading(true);
-      } else {
+      if (refresh) {
         setSyncingData(true);
+      } else if (pageNum === 1) {
+        setInitialLoading(true);
+      } else {
+        setLoading(true);
       }
       
       const response = await api.get("/notifications/", {
@@ -100,221 +121,288 @@ const Notifications = ({ updateUnreadCount }) => {
         }
       });
       
-      if (refresh) {
-        setNotifications(response.data.results);
-      } else {
-        setNotifications(prev => pageNum === 1 ? response.data.results : [...prev, ...response.data.results]);
-      }
+      const newNotifications = response.data.results;
+      
+      setNotifications(prev => {
+        if (refresh || pageNum === 1) {
+          return newNotifications;
+        } else {
+          return [...prev, ...newNotifications];
+        }
+      });
       
       setHasMore(response.data.next !== null);
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
+      setError(null);
+      
+      return newNotifications;
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
       setError("Failed to load notifications");
-      showError("Failed to load notifications");
+      showSnackbar("Failed to load notifications", "error");
+      return null;
     } finally {
+      setInitialLoading(false);
       setLoading(false);
       setSyncingData(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchNotifications(page);
-  }, [page, fetchNotifications]);
+  // Обработчик сообщений Snackbar
+  const showSnackbar = useCallback((message, severity = "info") => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
+    });
+  }, []);
 
- 
+  // Начальная загрузка данных
   useEffect(() => {
+    const initialize = async () => {
+      setInitialLoading(true);
+      await fetchSettings();
+      await fetchNotifications(1);
+      setInitialLoading(false);
+    };
+    
+    initialize();
+    
+    // Настройка периодической синхронизации
     const syncInterval = setInterval(() => {
       fetchNotifications(1, true);
     }, SYNC_INTERVAL);
     
     return () => clearInterval(syncInterval);
-  }, [fetchNotifications]);
+  }, [fetchSettings, fetchNotifications]);
 
-
+  // Загрузка следующей страницы при изменении номера страницы
   useEffect(() => {
-    const markAllAsRead = async () => {
-      try {
-        const unreadNotifications = notifications.filter(n => !n.read);
-        if (unreadNotifications.length > 0) {
-          await api.post("/notifications/mark-all-read/");
-          
-          
-          setNotifications(prev => 
-            prev.map(n => ({ ...n, read: true }))
-          );
-          
-          
-          updateUnreadCount(0);
-        }
-      } catch (error) {
-        console.error("Error marking all notifications as read:", error);
-      }
-    };
-    
-  
-    if (!loading && notifications.length > 0) {
-      markAllAsRead();
+    if (page > 1) {
+      fetchNotifications(page);
     }
-  }, [loading, notifications.length, updateUnreadCount]);
+  }, [page, fetchNotifications]);
 
- 
-  useEffect(() => {
-    const unreadCount = notifications.filter(n => !n.read).length;
-    updateUnreadCount(unreadCount);
-  }, [notifications, updateUnreadCount]);
-
-
-  const saveSettings = async (newSettings) => {
+  // Сохранение настроек
+  const saveSettings = useCallback(async (newSettings) => {
     setSavingSettings(true);
     try {
       await api.put("/notifications/settings/", newSettings);
       setSettings(newSettings);
-      showSuccess("Settings saved successfully");
-    } catch (error) {
-      console.error("Error saving settings:", error);
-      showError("Failed to save settings");
+      showSnackbar("Settings saved successfully", "success");
+    } catch (err) {
+      console.error("Error saving settings:", err);
+      showSnackbar("Failed to save settings", "error");
     } finally {
       setSavingSettings(false);
     }
-  };
+  }, [showSnackbar]);
 
-  const showSuccess = (message) => {
-    setSnackbar({
-      open: true,
-      message,
-      severity: "success"
-    });
-  };
-
-  const showError = (message) => {
-    setSnackbar({
-      open: true,
-      message,
-      severity: "error"
-    });
-  };
-
-  const handleSettingChange = (setting) => {
+  // Изменение настроек
+  const handleSettingChange = useCallback((setting) => {
     const newSettings = { ...settings, [setting]: !settings[setting] };
     saveSettings(newSettings);
-  };
+  }, [settings, saveSettings]);
 
-
-  const markAsRead = async (id) => {
+  // Отметка уведомления как прочитанного
+  const markAsRead = useCallback(async (id) => {
     try {
       await api.patch(`/notifications/${id}/mark-read/`);
       setNotifications(prev => 
         prev.map(n => n.id === id ? { ...n, read: true } : n)
       );
-    } catch (error) {
-      console.error("Error marking notification as read:", error);
-      showError("Failed to mark notification as read");
+    } catch (err) {
+      console.error("Error marking notification as read:", err);
+      showSnackbar("Failed to mark notification as read", "error");
     }
-  };
+  }, [showSnackbar]);
 
- 
-  const deleteNotification = async (id) => {
+  // Отметка всех уведомлений как прочитанные
+  const markAllAsRead = useCallback(async () => {
+    const unreadNotifications = notifications.filter(n => !n.read);
+    if (unreadNotifications.length === 0) return;
+    
+    try {
+      await api.post("/notifications/mark-all-read/");
+      setNotifications(prev => 
+        prev.map(n => ({ ...n, read: true }))
+      );
+      updateUnreadCount(0);
+      showSnackbar("All notifications marked as read", "success");
+    } catch (err) {
+      console.error("Error marking all notifications as read:", err);
+      showSnackbar("Failed to mark all notifications as read", "error");
+    }
+  }, [notifications, updateUnreadCount, showSnackbar]);
+
+  // Удаление уведомления
+  const deleteNotification = useCallback(async (id, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
     try {
       await api.delete(`/notifications/${id}/`);
       setNotifications(prev => prev.filter(n => n.id !== id));
-      showSuccess("Notification deleted");
-    } catch (error) {
-      console.error("Error deleting notification:", error);
-      showError("Failed to delete notification");
+      showSnackbar("Notification deleted", "success");
+    } catch (err) {
+      console.error("Error deleting notification:", err);
+      showSnackbar("Failed to delete notification", "error");
     }
-  };
+  }, [showSnackbar]);
 
-  const loadMore = () => {
-    if (!loading && hasMore) {
+  // Загрузка дополнительных уведомлений
+  const loadMore = useCallback(() => {
+    if (!loading && !syncingData && hasMore) {
       setPage(prev => prev + 1);
     }
-  };
+  }, [loading, syncingData, hasMore]);
 
-  const handleRefresh = () => {
+  // Обновление списка уведомлений
+  const handleRefresh = useCallback(() => {
     setPage(1);
     fetchNotifications(1, true);
-  };
+  }, [fetchNotifications]);
 
-  const handleCloseSnackbar = () => {
+  // Закрытие Snackbar
+  const handleCloseSnackbar = useCallback(() => {
     setSnackbar(prev => ({ ...prev, open: false }));
-  };
+  }, []);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  const groupByDate = (notifications) => {
+  // Мемоизированная группировка уведомлений по дате
+  const groupedNotifications = useMemo(() => {
     const groups = {};
-    
     notifications.forEach(notification => {
       const date = new Date(notification.created_at);
       const today = new Date();
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
-      
       let dateKey;
       if (date.toDateString() === today.toDateString()) {
-        dateKey = "Today";
+        dateKey = "Сегодня";
       } else if (date.toDateString() === yesterday.toDateString()) {
-        dateKey = "Yesterday";
+        dateKey = "Вчера";
       } else {
-        dateKey = date.toLocaleDateString(undefined, { 
+        dateKey = date.toLocaleDateString('ru-RU', { 
           year: 'numeric', 
           month: 'long', 
           day: 'numeric' 
         });
       }
-      
       if (!groups[dateKey]) {
         groups[dateKey] = [];
       }
-      
       groups[dateKey].push(notification);
     });
-    
     return groups;
-  };
-  
-  const groupedNotifications = groupByDate(notifications);
+  }, [notifications]);
+
+  // Подсчет непрочитанных уведомлений
+  const unreadCount = useMemo(() => 
+    notifications.filter(n => !n.read).length, 
+    [notifications]
+  );
+
+  // === ГЛАВНОЕ: Логика отображения и сброса счётчика ===
+
+  // 1. Сбросить счётчик при заходе в раздел уведомлений (только если включены уведомления)
+  useEffect(() => {
+    if (
+      (settings.testReminders || settings.resultAlerts) &&
+      !hasMarkedAllRead &&
+      notifications.some(n => !n.read)
+    ) {
+      markAllAsRead();
+      setHasMarkedAllRead(true);
+    }
+    // Если уведомления выключены, сбрасываем счётчик
+    if (!settings.testReminders && !settings.resultAlerts) {
+      updateUnreadCount(0);
+    }
+    // eslint-disable-next-line
+  }, [settings, notifications]);
+
+  // 2. Обновлять счётчик только если хотя бы один тип уведомлений включён
+  useEffect(() => {
+    if (settings.testReminders || settings.resultAlerts) {
+      updateUnreadCount(unreadCount);
+    } else {
+      updateUnreadCount(0);
+    }
+  }, [unreadCount, settings, updateUnreadCount]);
+
+  // 3. Сбросить флаг hasMarkedAllRead при обновлении уведомлений (например, при появлении новых)
+  useEffect(() => {
+    if (notifications.some(n => !n.read)) {
+      setHasMarkedAllRead(false);
+    }
+  }, [notifications]);
 
   return (
-    <ScrollContainer>
+    <ScrollContainer role="region" aria-label="Уведомления">
       <Box sx={{ p: 2 }}>
-        {/* Header */}
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, justifyContent: 'space-between' }}>
+        {/* Заголовок */}
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          mb: 3, 
+          justifyContent: 'space-between' 
+        }}>
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center',
-            transform: 'translateY(-5px)' ,
-            ml:-0.5
+            transform: 'translateY(-5px)',
+            ml: -0.5
           }}>
             <NotificationsIcon sx={{ 
               mr: 1, 
               fontSize: 24, 
-              color: '#001A00'
+              color: COLORS.darkPrimary
             }} />
             <Typography variant="h6" sx={{ 
               fontWeight: 'bold', 
-              color: '#001A00'
+              color: COLORS.darkPrimary
             }}>
-              Notifications
+              Уведомления
             </Typography>
-            {unreadCount > 0 && (
-              <Badge badgeContent={unreadCount} color="error" sx={{ ml: 2 }} />
+            {(settings.testReminders || settings.resultAlerts) && unreadCount > 0 && (
+              <Badge 
+                badgeContent={unreadCount} 
+                color="error" 
+                sx={{ ml: 2 }} 
+                aria-label={`${unreadCount} непрочитанных уведомлений`}
+              />
             )}
           </Box>
           
-          <IconButton 
-            onClick={handleRefresh} 
-            disabled={loading || syncingData}
-            sx={{ color: '#004d00' }}
-          >
-            {(loading || syncingData) ? (
-              <CircularProgress size={20} color="inherit" />
-            ) : (
-              <Refresh />
+          <Box>
+            {(settings.testReminders || settings.resultAlerts) && unreadCount > 0 && (
+              <Button
+                size="small"
+                variant="text"
+                onClick={markAllAsRead}
+                disabled={initialLoading || syncingData}
+                sx={{ mr: 1, color: COLORS.primary }}
+                aria-label="Отметить все как прочитанные"
+              >
+                Прочитать все
+              </Button>
             )}
-          </IconButton>
+            
+            <IconButton 
+              onClick={handleRefresh} 
+              disabled={initialLoading || syncingData}
+              sx={{ color: COLORS.primary }}
+              aria-label="Обновить уведомления"
+            >
+              {(initialLoading || syncingData) ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : (
+                <Refresh />
+              )}
+            </IconButton>
+          </Box>
         </Box>
 
+        {/* Настройки уведомлений */}
         <Paper elevation={0} sx={{ 
           p: 2, 
           mb: 2, 
@@ -335,13 +423,16 @@ const Notifications = ({ updateUnreadCount }) => {
               bgcolor: 'rgba(255, 255, 255, 0.7)',
               borderRadius: 2,
               zIndex: 1
-            }}>
+            }}
+            aria-live="polite"
+            aria-label="Сохранение настроек"
+            >
               <CircularProgress size={24} />
             </Box>
           )}
           
-          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#001A00', mb: 2 }}>
-            Notification Settings
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: COLORS.darkPrimary, mb: 2 }}>
+            Настройки уведомлений
           </Typography>
           
           <Box sx={{ 
@@ -351,20 +442,25 @@ const Notifications = ({ updateUnreadCount }) => {
             mb: 2,
             p: 1,
             borderRadius: 1,
-            '&:hover': { bgcolor: '#f5f5f5' }
+            '&:hover': { bgcolor: COLORS.hoverLight }
           }}>
             <Box>
-              <Typography sx={{ color: '#001A00', fontSize: '0.9rem' }}>Test Reminders</Typography>
-              <Typography variant="body2" sx={{ color: '#004d00', fontSize: '0.8rem' }}>
-                Get reminders about upcoming tests
+              <Typography sx={{ color: COLORS.darkPrimary, fontSize: '0.9rem' }}>
+                Напоминания о тестах
+              </Typography>
+              <Typography variant="body2" sx={{ color: COLORS.primary, fontSize: '0.8rem' }}>
+                Получать напоминания о предстоящих тестах
               </Typography>
             </Box>
             <Switch
-              checked={settings.testReminders === null ? true : settings.testReminders}
+              checked={settings.testReminders}
               onChange={() => handleSettingChange('testReminders')}
               color="primary"
               size="small"
-              disabled={savingSettings || settings.testReminders === null}
+              disabled={savingSettings || initialLoading}
+              inputProps={{
+                'aria-label': 'Включить напоминания о тестах'
+              }}
             />
           </Box>
           
@@ -374,59 +470,82 @@ const Notifications = ({ updateUnreadCount }) => {
             alignItems: 'center',
             p: 1,
             borderRadius: 1,
-            '&:hover': { bgcolor: '#f5f5f5' }
+            '&:hover': { bgcolor: COLORS.hoverLight }
           }}>
             <Box>
-              <Typography sx={{ color: '#001A00', fontSize: '0.9rem' }}>Result Alerts</Typography>
-              <Typography variant="body2" sx={{ color: '#004d00', fontSize: '0.8rem' }}>
-                Notify when test results are available
+              <Typography sx={{ color: COLORS.darkPrimary, fontSize: '0.9rem' }}>
+                Оповещения о результатах
+              </Typography>
+              <Typography variant="body2" sx={{ color: COLORS.primary, fontSize: '0.8rem' }}>
+                Уведомлять, когда доступны результаты тестов
               </Typography>
             </Box>
             <Switch
-              checked={settings.resultAlerts === null ? true : settings.resultAlerts}
+              checked={settings.resultAlerts}
               onChange={() => handleSettingChange('resultAlerts')}
               color="primary"
               size="small"
-              disabled={savingSettings || settings.resultAlerts === null}
+              disabled={savingSettings || initialLoading}
+              inputProps={{
+                'aria-label': 'Включить оповещения о результатах'
+              }}
             />
           </Box>
         </Paper>
       </Box>
 
-   
+      {/* Список уведомлений */}
       <Box className="scroll-content">
         <Box sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ 
             fontWeight: 'bold',
-            color: '#001A00',
+            color: COLORS.darkPrimary,
             mb: 2,
             px: 1,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
-            <span>Recent Notifications</span>
+            <span>Недавние уведомления</span>
             {syncingData && notifications.length > 0 && (
               <CircularProgress size={16} sx={{ ml: 1 }} />
             )}
           </Typography>
           
-          {error && notifications.length === 0 ? (
-            <Box sx={{ textAlign: 'center', p: 3, color: '#FF3B30' }}>
+          {initialLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+              <CircularProgress size={30} sx={{ color: COLORS.primary }} />
+            </Box>
+          ) : error && notifications.length === 0 ? (
+            <Box sx={{ 
+              textAlign: 'center', 
+              p: 3, 
+              color: '#FF3B30', 
+              bgcolor: 'rgba(255,59,48,0.05)', 
+              borderRadius: 2 
+            }}>
               <Typography variant="body2">{error}</Typography>
               <Button 
                 variant="outlined" 
                 size="small" 
                 onClick={handleRefresh}
-                sx={{ mt: 1, color: '#004d00', borderColor: '#004d00' }}
+                sx={{ mt: 1, color: COLORS.primary, borderColor: COLORS.primary }}
               >
-                Try Again
+                Попробовать снова
               </Button>
             </Box>
-          ) : notifications.length === 0 && !loading ? (
-            <Typography variant="body2" sx={{ textAlign: 'center', p: 3, color: '#004d00' }}>
-              No notifications available
-            </Typography>
+          ) : notifications.length === 0 ? (
+            <Box sx={{ 
+              textAlign: 'center', 
+              p: 3, 
+              color: COLORS.primary,
+              bgcolor: 'rgba(0,77,0,0.03)',
+              borderRadius: 2
+            }}>
+              <Typography variant="body2">
+                Нет доступных уведомлений
+              </Typography>
+            </Box>
           ) : (
             <>
               {Object.entries(groupedNotifications).map(([dateGroup, notifs]) => (
@@ -437,7 +556,7 @@ const Notifications = ({ updateUnreadCount }) => {
                       display: 'block', 
                       mb: 1, 
                       fontWeight: 'medium',
-                      color: '#004d00',
+                      color: COLORS.primary,
                       px: 1
                     }}
                   >
@@ -446,48 +565,52 @@ const Notifications = ({ updateUnreadCount }) => {
                   <List dense>
                     {notifs.map((notification) => (
                       <React.Fragment key={notification.id}>
-                        <ListItem
-                          sx={{
-                            borderRadius: 1,
-                            mb: 1,
-                            bgcolor: notification.read ? 'inherit' : '#e6f0e6',
-                            '&:hover': { bgcolor: notification.read ? '#f5f5f5' : '#d9e6d9' },
-                            position: 'relative'
-                          }}
+                        <NotificationItem
+                          isRead={notification.read}
                           onClick={() => !notification.read && markAsRead(notification.id)}
+                          button
+                          aria-label={notification.read ? "Уведомление прочитано" : "Отметить как прочитанное"}
                         >
                           <ListItemText
-                              primary={notification.subject}
-                              secondary={
-                                <>
-                                  <Typography variant="body2" sx={{ color: '#004d00', fontSize: '0.75rem' }}>
-                                    {notification.body}
-                                  </Typography>
-                                  <Typography variant="caption" sx={{ color: '#007700' }}>
-                                    {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                  </Typography>
-                                </>
+                            primary={notification.subject}
+                            secondary={
+                              <>
+                                <Typography 
+                                  variant="body2" 
+                                  sx={{ 
+                                    color: COLORS.primary, 
+                                    fontSize: '0.75rem',
+                                    mb: 0.5
+                                  }}
+                                >
+                                  {notification.body}
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: COLORS.primary }}>
+                                  {new Date(notification.created_at).toLocaleTimeString('ru-RU', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  })}
+                                </Typography>
+                              </>
+                            }
+                            sx={{
+                              '& .MuiListItemText-primary': {
+                                fontWeight: notification.read ? 'normal' : '600',
+                                color: COLORS.darkPrimary,
+                                fontSize: '0.875rem'
                               }
-                              sx={{
-                                '& .MuiListItemText-primary': {
-                                  fontWeight: notification.read ? 'normal' : '600',
-                                  color: '#001A00',
-                                  fontSize: '0.875rem'
-                                }
-                              }}
-                            />
+                            }}
+                          />
                           <IconButton
                             edge="end"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteNotification(notification.id);
-                            }}
-                            sx={{ color: '#004d00' }}
+                            onClick={(e) => deleteNotification(notification.id, e)}
+                            sx={{ color: COLORS.primary }}
                             size="small"
+                            aria-label="Удалить уведомление"
                           >
                             <Close fontSize="small" />
                           </IconButton>
-                        </ListItem>
+                        </NotificationItem>
                         <Divider variant="inset" component="li" />
                       </React.Fragment>
                     ))}
@@ -500,11 +623,12 @@ const Notifications = ({ updateUnreadCount }) => {
                   <Button
                     variant="text"
                     onClick={loadMore}
-                    disabled={loading}
+                    disabled={loading || syncingData}
                     startIcon={loading ? <CircularProgress size={16} /> : <ExpandMore />}
-                    sx={{ color: '#004d00' }}
+                    sx={{ color: COLORS.primary }}
+                    aria-label="Загрузить больше уведомлений"
                   >
-                    Load more
+                    Загрузить ещё
                   </Button>
                 </Box>
               )}
@@ -513,6 +637,7 @@ const Notifications = ({ updateUnreadCount }) => {
         </Box>
       </Box>
   
+      {/* Всплывающие уведомления */}
       <Snackbar 
         open={snackbar.open} 
         autoHideDuration={4000}
@@ -532,4 +657,4 @@ const Notifications = ({ updateUnreadCount }) => {
   );
 };
 
-export default Notifications; 
+export default Notifications;

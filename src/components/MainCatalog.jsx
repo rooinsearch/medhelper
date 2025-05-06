@@ -250,7 +250,7 @@ const MainCatalog = () => {
     <Box 
       sx={{ 
         py: { xs: 6, md: 10 },
-        marginTop: '220px',
+       
         position: 'relative',
         '&::before': {
           content: '""',

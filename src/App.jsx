@@ -12,11 +12,12 @@ import Cart from "./pages/CartPage.jsx";
 import MyTestsPage from "./pages/MyTestsPage.jsx";
 import ClinicTests from "./pages/ClinicsPage.jsx";
 import ClinicDetailPage from "./components/ClinicDetailPage.jsx";
+import AuthModal from "./components/LoginModal"; // Импортируем AuthModal
 import "./App.css";
 
 const Layout = ({ children }) => {
   const location = useLocation();
-  const showFooter = location.pathname !== "/checkai";
+  const showFooter = location.pathname !== "/checkai" && !location.pathname.includes("password-reset-confirm");
 
   return (
     <>
@@ -30,17 +31,26 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(
     localStorage.getItem("isAuthenticated") === "true"
   );
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     const authStatus = localStorage.getItem("isAuthenticated") === "true";
     setIsAuthenticated(!!token && authStatus);
-  }, []);
+    
+    // Проверяем URL для сброса пароля
+    const isPasswordResetUrl = /\/password-reset-confirm\/[^/]+\/[^/]+/.test(location.pathname);
+    if (isPasswordResetUrl) {
+      setShowAuthModal(true);
+    }
+  }, [location]);
 
   const handleLogin = (token) => {
     localStorage.setItem("token", token);
     localStorage.setItem("isAuthenticated", "true");
     setIsAuthenticated(true);
+    setShowAuthModal(false);
   };
 
   const handleLogout = () => {
@@ -49,11 +59,19 @@ function App() {
     setIsAuthenticated(false);
   };
 
+  const handleCloseAuthModal = () => {
+    setShowAuthModal(false);
+    // Если закрыли модалку с reset-password, перенаправляем на главную
+    if (/\/password-reset-confirm\/[^/]+\/[^/]+/.test(location.pathname)) {
+      window.history.pushState({}, '', '/');
+    }
+  };
+
   return (
-    <Router>
+    <>
       <Header 
         isAuthenticated={isAuthenticated}
-        onLogin={handleLogin} 
+        onLogin={() => setShowAuthModal(true)} 
         onLogout={handleLogout} 
       />
       <Layout>
@@ -76,6 +94,8 @@ function App() {
               )
             } 
           />
+          {/* Добавляем маршрут для сброса пароля */}
+          <Route path="/password-reset-confirm/:uidb64/:token" element={<HomePage />} />
           <Route path="*" element={<Navigate to="/" />} />
           <Route 
             path="/catalog-of-tests"
@@ -89,8 +109,22 @@ function App() {
           />
         </Routes>
       </Layout>
-    </Router>
+      
+      {/* Auth Modal */}
+      <AuthModal 
+        open={showAuthModal} 
+        onClose={handleCloseAuthModal}
+        onLogin={handleLogin}
+      />
+    </>
   );
 }
 
-export default App;
+// Оборачиваем App в Router
+const AppWithRouter = () => (
+  <Router>
+    <App />
+  </Router>
+);
+
+export default AppWithRouter;

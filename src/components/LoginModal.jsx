@@ -152,13 +152,14 @@ const AuthModal = ({ open, onClose, onLogin, initialResetToken = null }) => {
   const passwordInputRef = useRef(null);
   const resetEmailInputRef = useRef(null);
   const newPasswordInputRef = useRef(null);
+  const [uidb64, setUidb64] = useState(null);
+  const [resetToken, setResetToken] = useState(initialResetToken || null);
 
   const [isRegistering, setIsRegistering] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [resetToken, setResetToken] = useState(initialResetToken);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -182,14 +183,15 @@ const AuthModal = ({ open, onClose, onLogin, initialResetToken = null }) => {
   const API_BASE_URL = "http://localhost:8000";
 
   useEffect(() => {
-    // Check URL for reset token
-    const token = searchParams.get('token');
-    if (token) {
-      setResetToken(token);
+    // Пример: /password-reset-confirm/abc123/xyz456/
+    const match = window.location.pathname.match(/password-reset-confirm\/([^/]+)\/([^/]+)/);
+    if (match) {
+      setUidb64(match[1]);
+      setResetToken(match[2]);
       setShowResetPassword(true);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [open, searchParams]);
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -395,9 +397,9 @@ const AuthModal = ({ open, onClose, onLogin, initialResetToken = null }) => {
 
     try {
       await makeApiCall(
-        "/api/auth/password-reset-confirm/",
-        "POST",
-        { token: resetToken, newPassword },
+        "/api/auth/set-new-password/",
+        "PATCH",
+        { uidb64, token: resetToken, password: newPassword },
         "Failed to reset password"
       );
       
@@ -418,14 +420,14 @@ const AuthModal = ({ open, onClose, onLogin, initialResetToken = null }) => {
   const renderResetPasswordForm = () => (
     <>
       <Typography variant="h6" sx={{ textAlign: "center", mb: 2 }}>
-        {resetToken ? "Create New Password" : "Invalid Reset Link"}
-      </Typography>
-      
-      {!resetToken ? (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          The password reset link is invalid or expired.
-        </Alert>
-      ) : resetSuccess ? (
+  {uidb64 && resetToken ? "Create New Password" : "Invalid Reset Link"}
+</Typography>
+{!(uidb64 && resetToken) ? (
+  <Alert severity="error" sx={{ mb: 2 }}>
+    The password reset link is invalid or expired.
+  </Alert>
+) : resetSuccess ? (
+  
         <Alert severity="success" sx={{ mb: 2 }}>
           {resetFormMessage}
         </Alert>
@@ -470,7 +472,7 @@ const AuthModal = ({ open, onClose, onLogin, initialResetToken = null }) => {
               "&:disabled": { bgcolor: "#e0e0e0" }
             }}
             onClick={handleSubmitNewPassword}
-            disabled={isLoading || !resetToken}
+            disabled={isLoading || !(uidb64 && resetToken)}
           >
             {isLoading ? (
               <CircularProgress size={24} color="inherit" />
@@ -672,57 +674,59 @@ const AuthModal = ({ open, onClose, onLogin, initialResetToken = null }) => {
 
   return (
     <Modal open={open} onClose={isLoading ? undefined : onClose}>
-      <Box
-        sx={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: 400,
-          maxHeight: "90vh",
-          overflowY: "auto",
-          bgcolor: "background.paper",
-          boxShadow: 24,
-          p: 3,
-          borderRadius: 2,
-          outline: "none",
+    <Box
+      sx={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: { xs: '95%', sm: 420, md: 440 },
+        minWidth: 320,
+        maxWidth: 480,
+        maxHeight: "90vh",
+        overflowY: "auto",
+        bgcolor: "background.paper",
+        boxShadow: 24,
+        p: { xs: 2, sm: 3 },
+        borderRadius: 2,
+        outline: "none",
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <Typography 
+        variant="h4" 
+        fontWeight="bold" 
+        sx={{ 
+          mb: 2, 
+          color: "#001A00",
+          textAlign: "center"
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        <Typography 
-          variant="h4" 
-          fontWeight="bold" 
-          sx={{ 
-            mb: 2, 
-            color: "#001A00",
-            textAlign: "center"
+        MedHelper
+      </Typography>
+      
+      {showVerification ? (
+        <VerificationCodeComponent
+          email={formData.email}
+          onVerify={handleVerifyCode}
+          onResend={handleResendCode}
+          onBack={() => {
+            setShowVerification(false);
+            setError("");
           }}
-        >
-          MedHelper
-        </Typography>
-        
-        {showVerification ? (
-          <VerificationCodeComponent
-            email={formData.email}
-            onVerify={handleVerifyCode}
-            onResend={handleResendCode}
-            onBack={() => {
-              setShowVerification(false);
-              setError("");
-            }}
-            isLoading={isLoading}
-            verificationError={verificationError}
-            verificationSuccess={verificationSuccess}
-          />
-        ) : resetToken ? (
-          renderResetPasswordForm()
-        ) : showResetPassword ? (
-          renderRequestResetForm()
-        ) : (
-          renderMainForm()
-        )}
-      </Box>
-    </Modal>
+          isLoading={isLoading}
+          verificationError={verificationError}
+          verificationSuccess={verificationSuccess}
+        />
+      ) : resetToken ? (
+        renderResetPasswordForm()
+      ) : showResetPassword ? (
+        renderRequestResetForm()
+      ) : (
+        renderMainForm()
+      )}
+    </Box>
+  </Modal>
   );
 };
 

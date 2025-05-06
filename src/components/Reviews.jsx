@@ -36,21 +36,8 @@ const Reviews = () => {
       } catch (err) {
         console.error('Error loading reviews:', err);
         setError(err.message);
-        // Fallback data
-        setReviews([
-          {
-            id: 1,
-            name: "John Doe",
-            rating: 4.5,
-            text: "Great service! The AI analysis was surprisingly accurate.",
-          },
-          {
-            id: 2,
-            name: "Jane Smith",
-            rating: 5,
-            text: "Saved me hours of waiting. Highly recommend!",
-          }
-        ]);
+       
+      
       } finally {
         setLoading(false);
       }
@@ -63,21 +50,23 @@ const Reviews = () => {
     <Box
       sx={{
         backgroundColor: "#D1653E",
-        py: 4,
+        py: 1,
         px: 2,
         textAlign: "center",
         width: "100%",
         minHeight: 300,
         position: "relative",
         zIndex: 20,
+        
+        
       }}
     >
       <Typography 
-        variant="h5" 
+        variant="h6" 
         color="white" 
         fontWeight="bold" 
         gutterBottom
-        sx={{ mb: 3 }}
+        sx={{ mb: 1 }}
       >
         Real Stories, Real Impact
       </Typography>

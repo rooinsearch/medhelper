@@ -205,7 +205,7 @@ const CartPage = () => {
         </Stack>
 
         {isCartEmpty ? (
-          /* Empty state */
+    
           <Box textAlign="center" mt={8} p={3}>
             <CartIcon fontSize="large" sx={{ fontSize: 60, color: "text.disabled", mb: 2 }} />
             <Typography variant="h5" gutterBottom>

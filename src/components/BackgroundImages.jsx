@@ -31,7 +31,7 @@ const BackgroundImages = () => {
       />
 
     
-      <MainCatalog />
+     
 
     
     </Box>

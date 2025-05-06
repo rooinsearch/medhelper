@@ -335,7 +335,7 @@ const Header = ({ isAuthenticated, onLogin, cartItemCount = 0 }) => {
         }}>
           <Typography variant="h6" sx={{ mb: 2 }}>Choose your city</Typography>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            {["Almaty", "Astana"].map(cityOption => (
+            {["Almaty"].map(cityOption => (
               <MenuItem
                 key={cityOption}
                 onClick={() => {

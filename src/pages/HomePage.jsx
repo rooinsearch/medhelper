@@ -18,7 +18,7 @@ const HomePage = () => {
       <Tips/> 
       <TextMain/> 
       <Reviews/> 
-   
+      <MainCatalog/>
       <LoginModal/>
       <ContactUs/>
       

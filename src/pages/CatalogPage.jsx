@@ -424,11 +424,11 @@ const CatalogPage = () => {
             onChange={(_, val) => val && setSortOrder(val)}
             sx={{
               '& .MuiToggleButton-root': {
-                color: 'primary.main',
-                borderColor: 'primary.main',
+                color: 'green',
+                borderColor: 'white',
                 '&.Mui-selected': {
                   color: 'white',
-                  backgroundColor: 'primary.main'
+                  backgroundColor: 'orange'
                 }
               }
             }}
