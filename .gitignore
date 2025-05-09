@@ -1,3 +1,17 @@
 __pycache__/
 *.pyc
 .env
+venv/
+*.sqlite3
+
+# VSCode
+.vscode/
+
+# PyCharm
+.idea/
+
+# Logs
+*.log
+# Python
+venv/
+
