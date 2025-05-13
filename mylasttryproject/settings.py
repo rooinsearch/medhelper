@@ -22,7 +22,8 @@ SECRET_KEY=env('SECRET_KEY')
 
 DEBUG = env.bool("DEBUG", default=False)
 
-ALLOWED_HOSTS = env("ALLOWED_HOSTS", default="").split(",")
+ALLOWED_HOSTS = ["lastprojectmed.onrender.com", "127.0.0.1", "localhost"]
+
 
 
 INSTALLED_APPS = [
@@ -180,7 +181,7 @@ MAILGUN_FROM_EMAIL = env('MAILGUN_FROM_EMAIL')
 
 DEFAULT_FROM_EMAIL = MAILGUN_FROM_EMAIL
 
-CONTACT_RECEIVER_EMAIL = '210107072@stu.sdu.edu.kz'
+CONTACT_RECEIVER_EMAIL = 'arukaborbekova@gmail.com'
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=90),
@@ -191,8 +192,13 @@ SIMPLE_JWT = {
 }
 
 
-CORS_ALLOWED_ORIGINS = [env("FRONTEND_URL")]
-CSRF_TRUSTED_ORIGINS = [env("FRONTEND_URL")]
+CORS_ALLOWED_ORIGINS = [
+    "https://medhelperfront.onrender.com",
+    "http://localhost:5000",
+]
+CSRF_TRUSTED_ORIGINS = [
+    "https://medhelperfront.onrender.com",
+]
 # CORS_ALLOW_CREDENTIALS = True
 # CORS_ALLOWED_ORIGIN_REGEXES = [
 #     r"^https?://.*$"
