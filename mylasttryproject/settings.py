@@ -1,26 +1,27 @@
 
 import environ
-import os
-import dj_database_url
 from pathlib import Path
+import os
 from datetime import timedelta
 import logging
 logger = logging.getLogger(__name__)
 
-env = environ.Env()
-
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-environ.Env.read_env(BASE_DIR / '.env')
+
+env = environ.Env()
+
+env.read_env(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 SECRET_KEY=env('SECRET_KEY')
+
 DEBUG = env.bool("DEBUG", default=False)
+
 ALLOWED_HOSTS = env("ALLOWED_HOSTS", default="").split(",")
 
 
