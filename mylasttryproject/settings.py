@@ -7,9 +7,7 @@ from datetime import timedelta
 import logging
 logger = logging.getLogger(__name__)
 
-env = environ.Env(
-    DEBUG=(bool, False)
-)
+env = environ.Env()
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
